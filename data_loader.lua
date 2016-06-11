@@ -15,7 +15,7 @@ function SequentialDB:__init(dataPath, batchSize, rho)
   self.rho = rho
   self.seqStart = {}
   self.dataTensor = torch.Tensor(batchSize, rho, self.dim[2], self.dim[3], self.dim[4])
-  self.targetTensor = torch.Tensor(batchSize, self.ldim[2])
+  self.targetTensor = torch.Tensor(batchSize, rho, self.ldim[2])
   print("Counting sequence start frames...")
   for i = 1, self.dim[1] do
     local seq = self.seqNums:partial({i,i})[1]
@@ -49,7 +49,7 @@ function SequentialDB:getBatch()
       self.batchIndexs[i] = self.seqStart[seq2]
     end
     self.dataTensor[{i}] = self.data:partial({self.batchIndexs[i],self.batchIndexs[i]+self.rho-1},{1,self.dim[2]},{1,self.dim[3]},{1,self.dim[4]})
-    self.targetTensor[i] = self.labels:partial({self.batchIndexs[i]+self.rho-1,self.batchIndexs[i]+self.rho-1},{1,self.ldim[2]})
+    self.targetTensor[i] = self.labels:partial({self.batchIndexs[i],self.batchIndexs[i]+self.rho-1},{1,self.ldim[2]})
   end
 
   self.batchIndexs:add(1)
