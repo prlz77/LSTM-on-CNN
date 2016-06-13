@@ -4,7 +4,8 @@ local class = require 'class'
 SequentialDB = class('SequentialDB')
 
 
-function SequentialDB:__init(dataPath, batchSize, rho)
+function SequentialDB:__init(dataPath, batchSize, rho, step)
+  self.step = step or 1
   self.db = hdf5.open(dataPath, 'r')
   self.data = self.db:read('data')
   self.dim = self.data:dataspaceSize()
@@ -52,6 +53,6 @@ function SequentialDB:getBatch()
     self.targetTensor[i] = self.labels:partial({self.batchIndexs[i],self.batchIndexs[i]+self.rho-1},{1,self.ldim[2]})
   end
 
-  self.batchIndexs:add(1)
+  self.batchIndexs:add(self.step)
   return self.dataTensor, self.targetTensor
 end
