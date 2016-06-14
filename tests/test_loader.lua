@@ -10,7 +10,7 @@ for it = 1, MAX_ITER do
     local rho = torch.random(1, MAX_BS)
     print('Batch Size: '..bs)
     print('Rho: '..rho)
-    local dataLoader = SequentialDB('toydata.h5', bs, rho)
+    local dataLoader = SequentialDB('./tests/toydata.h5', bs, rho)
     local i_min = dataLoader.batchIndexs:clone() - 1
     local i_max = i_min:clone() + dataLoader.rho - 1
 
@@ -45,5 +45,6 @@ for it = 1, MAX_ITER do
         end
         xlua.progress(it2,200)
     end
+    print('OK.')
 end
 
