@@ -1,0 +1,2 @@
+epoch	train error	test error	
+ 1.0000e+00	 4.9306e-01	

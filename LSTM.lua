@@ -1,3 +1,11 @@
+-- LSTM training framework for hdf5 data
+-- Author: Pau Rodríguez López (@prlz77)
+-- Institution: ISELAB in CVC-UAB
+-- Date: 14/06/2016
+-- Description: Performs regression with a LSTM neural network on arbitrary sequential hdf5 data in the form n-to-one. 
+--              It also has plotting features and allows to save outputs for further processing.
+-- Contact: pau.rodri1 at gmail.com
+
 require 'rnn'
 require 'cutorch'
 require 'cunn'
@@ -19,6 +27,11 @@ cmd:option('--valPath', '', 'validation.h5 path')
 cmd:option('--learningRate', 0.01, 'learning rate at t=0')
 cmd:option('--momentum', 0.9, 'momentum')
 cmd:option('--batchSize', 32, 'number of examples per batch')
+
+-- model i/0
+cmd:option('--load', '', 'Load LSTM pre-trained weights')
+cmd:option('--saveOutputs', '', '.h5 file path to save outputs')
+
 --cmd:option('--cuda', false, 'use CUDA')
 --cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 1000, 'maximum number of epochs to run')
@@ -39,8 +52,9 @@ cmd:option('--logPath', './log.txt', 'log here')
 cmd:option('--savePath', './snapshots', 'save snapshots here')
 cmd:option('--saveEvery', 0, 'number of epochs to save model snapshot')
 cmd:option('--plotRegression', 0, 'number of epochs to plot regression approximation')
-
+cmd:option('--testOnly', false, 'Test only flag')
 cmd:text()
+
 opt = cmd:parse(arg or {})
 
 -- snapshots folder
@@ -56,31 +70,36 @@ local dataDim = trainDB.dim[2]*trainDB.dim[3]*trainDB.dim[4] -- get flat data di
 logger = optim.Logger(opt.logPath)
 logger:setNames{'epoch', 'train error', 'test error'}
 
--- turn on recurrent batchnorm
-nn.FastLSTM.bn = true
--- build LSTM RNN
-local rnn = nn.Sequential()
-rnn:add(nn.SplitTable(1,2)) -- (bs, rho, dim)
-rnn = rnn:add(nn.Sequencer(nn.FastLSTM(dataDim, opt.hiddenSize)))
-if opt.dropoutProb > 0 then
-  rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
-end
-
-for d = 1,(opt.depth - 1) do
-  rnn = rnn:add(nn.Sequencer(nn.FastLSTM(opt.hiddenSize, opt.hiddenSize)))
+if opt.load == '' then
+  -- turn on recurrent batchnorm
+  nn.FastLSTM.bn = true
+  -- build LSTM RNN
+  rnn = nn.Sequential()
+  rnn:add(nn.SplitTable(1,2)) -- (bs, rho, dim)
+  rnn = rnn:add(nn.Sequencer(nn.FastLSTM(dataDim, opt.hiddenSize)))
   if opt.dropoutProb > 0 then
     rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
   end
-end
-rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, trainDB.ldim[2])))
-rnn:add(nn.SelectTable(-1))
 
--- CPU -> GPU
-rnn:cuda()
+  for d = 1,(opt.depth - 1) do
+    rnn = rnn:add(nn.Sequencer(nn.FastLSTM(opt.hiddenSize, opt.hiddenSize)))
+    if opt.dropoutProb > 0 then
+      rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
+    end
+  end
+  rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, trainDB.ldim[2])))
+  rnn:add(nn.SelectTable(-1))
 
--- random init weights
-for k,param in ipairs(rnn:parameters()) do
-  param:uniform(-opt.uniform, opt.uniform)
+  -- CPU -> GPU
+  rnn:cuda()
+
+  -- random init weights
+  for k,param in ipairs(rnn:parameters()) do
+    param:uniform(-opt.uniform, opt.uniform)
+  end
+
+else --pre-trained model
+  rnn = torch.load(opt.model)
 end
 
 -- show the network
@@ -142,7 +161,7 @@ function test()
     inputs = inputs:resize(1,opt.rho,dataDim):cuda()
     targets = targets[{{},-1,{}}]:resize(1, valDB.ldim[2]):cuda() --bs = 1 on test (FIXME?)
     local outputs = rnn:forward(inputs)
-    if opt.plotRegression ~= 0 then
+    if opt.plotRegression ~= 0 or opt.saveOutputs ~= '' then
       inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1)
       outputHist[iter] = outputs:float():view(-1)
       targetHist[iter] = targets:float():view(-1)
@@ -158,14 +177,23 @@ function test()
     -- edge efects if rho > 1 because we need rho frames to predict the last one
     gnuplot.plot({'inputs', inputHist, '.'},{'outputs', outputHist, '-'},{'targets', targetHist, '-'})
   end
+  if opt.saveOutputs ~= '' then
+    local output = hdf5.open(opt.saveOutputs, 'w')
+    output:write('outputs', outputHist)
+    output:write('labels', targetHist)
+    output:close()
+  end
   return loss / valDB.dim[1], outputs
 end
 
 while epoch < opt.maxEpoch do
-  print('epoch '..epoch..':')
-  print('Train:')
-  local trainLoss = train()
-  print('Avg train loss: '..trainLoss)
+  local trainLoss = nil
+  if not opt.testOnly then
+    print('epoch '..epoch..':')
+    print('Train:')
+    trainLoss = train()
+    print('Avg train loss: '..trainLoss)
+  end
   local testLoss = nil
   if (epoch % opt.testEvery) == 0 then
     print('Test:')
