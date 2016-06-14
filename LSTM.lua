@@ -48,7 +48,7 @@ cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout proba
 -- other
 cmd:option('--printEvery', 0, 'print loss every n iters')
 cmd:option('--testEvery', 1, 'print test accuracy every n epochs')
-cmd:option('--logPath', './log.txt', 'log here')
+cmd:option('--logPath', '', 'log here')
 cmd:option('--savePath', './snapshots', 'save snapshots here')
 cmd:option('--saveEvery', 0, 'number of epochs to save model snapshot')
 cmd:option('--plotRegression', 0, 'number of epochs to plot regression approximation')
@@ -59,8 +59,18 @@ opt = cmd:parse(arg or {})
 
 -- snapshots folder
 if opt.saveEvery ~= 0 then
-  paths.mkdir(paths.concat(opt.savePath, os.date("%d_%m_%y-%T")))
+  opt.savePath=paths.concat(opt.savePath, os.date("%d_%m_%y-%T"))
+  paths.mkdir(opt.savePath)
 end
+
+--log path settings
+if opt.logPath == '' then
+  paths.mkdir('./logs')
+  opt.logPath = paths.concat('./logs', os.date("%d_%m_%y-%T")..'.log')
+else
+  paths.mkdir(paths.dir(opt.logPath))
+end
+
 -- initialize dataset
 local trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho)
 local valDB = SequentialDB(opt.valPath, 1, opt.rho) --bs=1 to loop only once through all the data.
@@ -203,8 +213,8 @@ while epoch < opt.maxEpoch do
     print('Avg test loss: '..testLoss)
   end
   logger:add({epoch, trainLoss, testLoss})
-  epoch = epoch + 1
   if (epoch % opt.saveEvery) == 0 then
-    torch.save('model.t7',lightModel)
+    torch.save(opt.savePath..'/model_'..epoch..'.t7',lightModel)
   end
+  epoch = epoch + 1
 end
