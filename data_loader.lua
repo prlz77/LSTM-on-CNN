@@ -1,3 +1,15 @@
+-- Sequential data provider for hdf5 data.
+-- Author: Pau Rodríguez López (@prlz77)
+-- Mail: pau.rodri1 at gmail.com
+-- Institution: ISELAB in CVC-UAB
+-- Date: 14/06/2016
+-- Description: Allows to read sequential data from an hdf5 file with batch interleaving.
+--              The hdf5 file should contain the following datasets:
+--                'data'   - a NxCxWxH float tensor with N samples with depth C and spatial dimensions W and H (W,H = 1 when no spatial data).
+--                'labels' - a NxC float tensor with the labels of the N samples (C is usually 1 for regression). 
+--                'seq'    - a Nx1 int tensor with the sequence number of each frame. For example, two concatenated videos of 3 and 4 frames each would
+--                           produce: 1112222.
+
 require 'dp'
 require 'hdf5'
 local class = require 'class'

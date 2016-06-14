@@ -1,3 +1,9 @@
+-- Simple test for the data_loader.
+-- Author: Pau Rodríguez López (@prlz77)
+-- Mail: pau.rodri1 at gmail.com
+-- Institution: ISELAB in CVC-UAB
+-- Date: 14/06/2016
+
 require 'data_loader'
 require 'hdf5'
 require 'xlua'

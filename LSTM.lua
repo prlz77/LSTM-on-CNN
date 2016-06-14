@@ -1,10 +1,10 @@
 -- LSTM training framework for hdf5 data
 -- Author: Pau Rodríguez López (@prlz77)
+-- Mail: pau.rodri1 at gmail.com
 -- Institution: ISELAB in CVC-UAB
 -- Date: 14/06/2016
 -- Description: Performs regression with a LSTM neural network on arbitrary sequential hdf5 data in the form n-to-one. 
 --              It also has plotting features and allows to save outputs for further processing.
--- Contact: pau.rodri1 at gmail.com
 
 require 'rnn'
 require 'cutorch'

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Checks if the LSTM and provider work properly.
+
 th ./tests/test_loader.lua
 if [[ $? == 1 ]]; then
     echo "Error in data provider."
