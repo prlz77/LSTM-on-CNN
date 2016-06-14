@@ -64,6 +64,8 @@ end
 -- initialize dataset
 local trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho)
 local valDB = SequentialDB(opt.valPath, 1, opt.rho) --bs=1 to loop only once through all the data.
+local trainIters = math.floor(trainDB.N / trainDB.bs)
+local valIters = math.floor(valDB.N / valDB.bs)
 --valDB.batchIndexs = torch.linspace(1,opt.batchSize, opt.batchSize)
 local dataDim = trainDB.dim[2]*trainDB.dim[3]*trainDB.dim[4] -- get flat data dimensions
 -- start logger
@@ -138,15 +140,15 @@ function train()
   end
   -- keep avg loss
   local loss = 0
-  for iter = 1, trainDB.dim[1] do
+  for iter = 1, trainIters do
     parameters, f = optim.adam(feval, parameters, optimState)
-    xlua.progress(iter, trainDB.dim[1])
+    xlua.progress(iter, trainIters)
     if iter % opt.printEvery == 0 then
       print('Iter: '..iter..', loss: '..loss )
     end
     loss = loss + f[1]
   end
-  return loss / trainDB.dim[1]
+  return loss / trainIters
 end
 
 function test()
@@ -156,7 +158,7 @@ function test()
   local outputHist = {}
   local targetHist = {}
   local inputHist = {}
-  for iter = 1, valDB.dim[1] do
+  for iter = 1, valIters do
     inputs, targets = valDB:getBatch()
     inputs = inputs:resize(1,opt.rho,dataDim):cuda()
     targets = targets[{{},-1,{}}]:resize(1, valDB.ldim[2]):cuda() --bs = 1 on test (FIXME?)
@@ -167,7 +169,7 @@ function test()
       targetHist[iter] = targets:float():view(-1)
     end
     local f = criterion:forward(outputs, targets)    
-    xlua.progress(iter, valDB.dim[1])
+    xlua.progress(iter, valIters)
     loss = loss + f
   end
   if (epoch % opt.plotRegression) == 0 then
@@ -183,7 +185,7 @@ function test()
     output:write('labels', targetHist)
     output:close()
   end
-  return loss / valDB.dim[1], outputs
+  return loss / valIters, outputs
 end
 
 while epoch < opt.maxEpoch do

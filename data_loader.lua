@@ -16,8 +16,8 @@ local class = require 'class'
 SequentialDB = class('SequentialDB')
 
 
-function SequentialDB:__init(dataPath, batchSize, rho, step)
-  self.step = step or 1
+function SequentialDB:__init(dataPath, batchSize, rho, shuffle)
+  self.shuffle = false or shuffle
   self.db = hdf5.open(dataPath, 'r')
   self.data = self.db:read('data')
   self.dim = self.data:dataspaceSize()
@@ -36,35 +36,36 @@ function SequentialDB:__init(dataPath, batchSize, rho, step)
       self.seqStart[seq] = i
     end
   end
-  print("Generating random batch indices...")
-  self.batchIndexs = torch.IntTensor(self.bs)
-  for i = 1,self.bs do
-    self.batchIndexs[i] = torch.random(1,self.dim[1] - rho)
-    if self.batchIndexs[i] + self.rho - 1 > self.dim[1] then
-      self.batchIndexs[i] = 1
-    end
-    local seq = self.seqNums:partial({self.batchIndexs[i],self.batchIndexs[i]})[1]
-    local seq2 = self.seqNums:partial({self.batchIndexs[i]+self.rho-1, self.batchIndexs[i]+self.rho-1})[1]
+  print('Pre-generating sequence indexs')
+  self.sequences = {}
+  local iterator = 1
+  local eob = false
+  while iterator + self.rho - 1 <= self.dim[1] do
+    local seq = self.seqNums:partial({iterator,iterator})[1]
+    local seq2 = self.seqNums:partial({iterator+self.rho-1, iterator+self.rho-1})[1]
     if seq ~= seq2 then
-      self.batchIndexs[i] = self.seqStart[seq2]
+      iterator = self.seqStart[seq2]
     end
+    table.insert(self.sequences, {iterator, iterator + self.rho - 1})
+    iterator = iterator + 1
   end
+  self.N = #self.sequences
+  self.sequences = torch.IntTensor(self.sequences)
+  assert(self.bs <= self.N)
+  if self.shuffle then
+      print("Shuffling...")
+      local shuff = torch.randperm(self.N):long()
+      self.sequences = self.sequences:index(1, shuff)
+  end
+  self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end
 
 function SequentialDB:getBatch()
   for i = 1,self.bs do
-    if self.batchIndexs[i] + self.rho - 1 > self.dim[1] then
-      self.batchIndexs[i] = 1
-    end
-    local seq = self.seqNums:partial({self.batchIndexs[i],self.batchIndexs[i]})[1]
-    local seq2 = self.seqNums:partial({self.batchIndexs[i]+self.rho-1, self.batchIndexs[i]+self.rho-1})[1]
-    if seq ~= seq2 then
-      self.batchIndexs[i] = self.seqStart[seq2]
-    end
-    self.dataTensor[{i}] = self.data:partial({self.batchIndexs[i],self.batchIndexs[i]+self.rho-1},{1,self.dim[2]},{1,self.dim[3]},{1,self.dim[4]})
-    self.targetTensor[i] = self.labels:partial({self.batchIndexs[i],self.batchIndexs[i]+self.rho-1},{1,self.ldim[2]})
+    local seqInterval = {self.sequences[self.batchIndexs[i]][1], self.sequences[self.batchIndexs[i]][2]}
+    self.dataTensor[{i}] = self.data:partial(seqInterval,{1,self.dim[2]},{1,self.dim[3]},{1,self.dim[4]})
+    self.targetTensor[i] = self.labels:partial(seqInterval,{1,self.ldim[2]})
+    self.batchIndexs[i] = 1 + ((self.batchIndexs[i] + self.bs - 1) % self.N)
   end
-
-  self.batchIndexs:add(self.step)
   return self.dataTensor, self.targetTensor
 end

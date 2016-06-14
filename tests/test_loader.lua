@@ -7,13 +7,14 @@
 require 'data_loader'
 require 'hdf5'
 require 'xlua'
+require 'math'
 MIN_SEQ = 100
 MAX_BS = 100
-MAX_ITER = 5
+MAX_ITER = 10
 print('Testing...')
 for it = 1, MAX_ITER do
-    local bs = torch.random(1,MIN_SEQ)
-    local rho = torch.random(1, MAX_BS)
+    local rho = torch.random(1, 100)
+    local bs = torch.random(1,math.min(MAX_BS, math.floor(200/rho)))
     print('Batch Size: '..bs)
     print('Rho: '..rho)
     local dataLoader = SequentialDB('./tests/toydata.h5', bs, rho)
@@ -22,11 +23,10 @@ for it = 1, MAX_ITER do
 
     for i = 1,dataLoader.bs do
         if i_max[i] > 99 then
-            i_min[i] = i_min[i] + 400
-            i_max[i] = i_max[i] + 400
+            i_min[i] = 500 + math.floor(i_max[i] % 100)
+            i_max[i] = i_min[i] + dataLoader.rho - 1
         end
     end
-
     for it2 = 1,200 do
         data, labels = dataLoader:getBatch()
         for i = 1, dataLoader.bs do
@@ -38,16 +38,20 @@ for it = 1, MAX_ITER do
             local y = seq+1000
             assert((y - labels[{i}]):abs():sum() < 0.00001)
         end
-        i_min:add(1)
-        i_max:add(1)
+        i_min:add(bs)
+        i_max:add(bs)
         for i = 1,dataLoader.bs do
-            if i_max[i] > 99 and i_min[i] < 500 then
-                i_min[i] = 500
-                i_max[i] = 500 + dataLoader.rho - 1
-            elseif i_max[i] > 599 and i_min[i] >= 500 then
-                i_min[i] = 0
-                i_max[i] = dataLoader.rho - 1
-            end
+            repeat
+                local i_min2  = i_min:clone()
+                local i_max2 = i_max:clone()
+                if i_max[i] > 99 and i_min[i] < 500 then
+                    i_min[i] = 500 + math.floor(i_max[i] % 100)
+                    i_max[i] = i_min[i] + dataLoader.rho - 1
+                elseif i_max[i] > 599 and i_min[i] >= 500 then
+                    i_min[i] = math.floor(i_max[i] % 100)
+                    i_max[i] = i_min[i] + dataLoader.rho - 1
+                end
+            until i_min2:eq(i_min):all() and i_max2:eq(i_max):all()
         end
         xlua.progress(it2,200)
     end
