@@ -9,8 +9,8 @@ For automatic generation of the features and training the LSTM run:
 ```
 ### Data Format
 * Images in a OpenCV compatible format (jpg, png, etc.)
-* A file with the ordered list of *train* frames. ```./path/to/image.jpg label sequence_number\n```
-* A file with the ordered list of *validation* frames. ```./path/to/image.jpg label sequence_number\n```
+* A file with the ordered list of *train* frames. ```./path/to/frame_x.jpg label sequence_number\n...```
+* A file with the ordered list of *validation* frames. ```./path/to/frame_x.jpg label sequence_number\n...```
 
 All the frames from the same video sequence must have the same sequence number.
 
