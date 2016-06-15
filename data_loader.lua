@@ -16,13 +16,14 @@ local class = require 'class'
 SequentialDB = class('SequentialDB')
 
 
-function SequentialDB:__init(dataPath, batchSize, rho, shuffle)
+function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
   self.shuffle = false or shuffle
+  hdf5_fields = hdf5_fields or {data='data', labels='labels', seq='seq'}
   self.db = hdf5.open(dataPath, 'r')
-  self.data = self.db:read('data')
+  self.data = self.db:read(hdf5_fields.data)
   self.dim = self.data:dataspaceSize()
-  self.seqNums = self.db:read('seq')
-  self.labels = self.db:read('labels')
+  self.seqNums = self.db:read(hdf5_fields.seq)
+  self.labels = self.db:read(hdf5_fields.labels)
   self.ldim = self.labels:dataspaceSize()
   self.bs = batchSize
   self.rho = rho
@@ -34,9 +35,12 @@ function SequentialDB:__init(dataPath, batchSize, rho, shuffle)
     local seq = self.seqNums:partial({i,i})[1]
     if self.seqStart[seq] == nil then
       self.seqStart[seq] = i
+      if #self.seqStart > 1 then
+        assert((i - self.seqStart[seq - 1]) >= self.rho)
+      end
     end
   end
-  print('Pre-generating sequence indexs')
+  print('Pre-generating sequence indexs, might take a while...')
   self.sequences = {}
   local iterator = 1
   local eob = false

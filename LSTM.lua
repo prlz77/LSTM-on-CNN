@@ -72,8 +72,9 @@ else
 end
 
 -- initialize dataset
-local trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho)
-local valDB = SequentialDB(opt.valPath, 1, opt.rho) --bs=1 to loop only once through all the data.
+local hdf5_fields = {data='outputs', labels='labels', seq='seq_number'}
+local trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho, false, hdf5_fields)
+local valDB = SequentialDB(opt.valPath, opt.batchSize, opt.rho, false, hdf5_fields) --bs=1 to loop only once through all the data.
 local trainIters = math.floor(trainDB.N / trainDB.bs)
 local valIters = math.floor(valDB.N / valDB.bs)
 --valDB.batchIndexs = torch.linspace(1,opt.batchSize, opt.batchSize)
@@ -167,14 +168,14 @@ function test()
   local loss = 0
   local outputHist = {}
   local targetHist = {}
-  local inputHist = {}
+  --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
     inputs, targets = valDB:getBatch()
-    inputs = inputs:resize(1,opt.rho,dataDim):cuda()
-    targets = targets[{{},-1,{}}]:resize(1, valDB.ldim[2]):cuda() --bs = 1 on test (FIXME?)
+    inputs = inputs:resize(valDB.bs,opt.rho,dataDim):cuda()
+    targets = targets[{{},-1,{}}]:resize(valDB.bs, valDB.ldim[2]):cuda()
     local outputs = rnn:forward(inputs)
     if opt.plotRegression ~= 0 or opt.saveOutputs ~= '' then
-      inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1)
+      --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D
       outputHist[iter] = outputs:float():view(-1)
       targetHist[iter] = targets:float():view(-1)
     end
@@ -185,9 +186,10 @@ function test()
   if (epoch % opt.plotRegression) == 0 then
     outputHist = nn.JoinTable(1,1):forward(outputHist)
     targetHist = nn.JoinTable(1,1):forward(targetHist)
-    inputHist = nn.JoinTable(1,1):forward(inputHist)
+    --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
     -- edge efects if rho > 1 because we need rho frames to predict the last one
-    gnuplot.plot({'inputs', inputHist, '.'},{'outputs', outputHist, '-'},{'targets', targetHist, '-'})
+    gnuplot.plot({'outputs', outputHist, '-'},{'targets', targetHist, '-'})
+    --gnuplot.plot({'inputs', inputHist, '.'},{'outputs', outputHist, '-'},{'targets', targetHist, '-'}) --uncomment if 1D
   end
   if opt.saveOutputs ~= '' then
     local output = hdf5.open(opt.saveOutputs, 'w')
@@ -217,4 +219,5 @@ while epoch < opt.maxEpoch do
     torch.save(opt.savePath..'/model_'..epoch..'.t7',lightModel)
   end
   epoch = epoch + 1
+  collectgarbage()
 end

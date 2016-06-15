@@ -25,14 +25,16 @@ parser.add_argument('layer', type=str, nargs='+', help='The target layer(s).')
 parser.add_argument('--output', type=str, help='The output file.', default='output.h5')
 parser.add_argument('--flist', nargs=2, type=str, help='The base folder and the file list of the images.', default=None)
 parser.add_argument('--dataset', type=str, help='The lmdb dataset.', default=None)
-parser.add_argument('--sort', action='store_true', description="Whether images should be sorted")
-parser.add_argument('--mean', type=int, nargs=3, default=None, help='Pixel mean (3 bgr values)')
+parser.add_argument('--sort', action='store_true', help="Whether images should be sorted")
+parser.add_argument('--mean', type=float, nargs=3, default=None, help='Pixel mean (3 bgr values)')
 parser.add_argument('--mean_file', type=str, default=None, help='Per-pixel mean in bgr')
 parser.add_argument('--scale', type=int, default=None, help='Scale value.')
 parser.add_argument('--swap', action='store_true', help='BGR <-> RGB. If using --flist, images are loaded in BGR by default.')
-parser.add_argument('--cpuonly', action='store_false', description='CPU-Only flag.')
-parser.add_argument('--sequential', action='store_true', description="""Should receive list file with:
-frame_path<space>label<space>seq_number<return>""")
+parser.add_argument('--cpuonly', action='store_true', help='CPU-Only flag.')
+parser.add_argument('--standarize', action='store_true', help="whether to standarize the outputs")
+parser.add_argument('--standarize_with', type=str, default='', help='get mean and std from another .h5 (recommended for validation)')
+parser.add_argument('--verbose', action='store_true', help='show image paths while being processed')
+
 args = parser.parse_args()
 
 # CPU ONLY
@@ -79,20 +81,25 @@ if args.flist != None:
             flist.sort()
     for layer in args.layer:
         outputs.append(h5py.File(args.output + '_' + layer.replace('/','_') + '.h5', 'w'))
-        outputs[-1].create_dataset('outputs', tuple([len(flist)] + list(net.blobs[layer].data.shape)), dtype='float32')
-        outputs[-1].create_dataset('labels', (len(flist), 1), dtype='int32')
-        outputs[-1].create_dataset('seq_number', (len(flist), 1), dtype='int32')
+        dim = net.blobs[layer].data.shape
+        if len(dim) < 3:
+            dim = [1,1,np.array(dim).prod()]
+        outputs[-1].create_dataset('outputs', tuple([len(flist)] + dim), dtype='float32')
+        outputs[-1].create_dataset('labels', (len(flist), 1), dtype='float')
+        outputs[-1].create_dataset('seq_number', (len(flist),), dtype='int32')
     for i,line in enumerate(flist):
         spline = line.replace('\n', '').split(" ")
         img = imread(os.path.join(args.flist[0], spline[0]))
+        if args.verbose:
+            print(os.path.join(args.flist[0], spline[0]))
         net.blobs['data'].data[...] = transformer.preprocess('data', img)
         out = net.forward()
         # Get sequence numbers
-        seq_number = spline[-1]
-        if seq_number not in seq_numbers_set:
-            seq_numbers_set.append(seq_number)
-            print 'Current seeq number: ', seq_numbers_set.index(seq_number)
-        seq_nums.append(seq_numbers_set.index(seq_number))
+        seq_number = int(spline[-1])
+
+        if args.verbose and len(seq_nums) >= 1 and seq_number != seq_nums[-1]:
+            print "Current sequence: ", seq_number
+        seq_nums.append(seq_number)
 
         # for debugging
         labels.append(float(spline[1]))
@@ -100,9 +107,30 @@ if args.flist != None:
         for index, layer in enumerate(args.layer):
             outputs[index]['outputs'][i,...] = net.blobs[layer].data[...]
             outputs[index]['labels'][i,...] = labels[-1]
-            outputs[index]['seq_number'][i,...] = seq_nums[-1]
+            outputs[index]['seq_number'][i] = seq_nums[-1]
         if i % 1000 == 0:
             print "Processing image ", i, " of ", len(flist)
+    if args.standarize:
+        for index, layer in enumerate(args.layer):
+            if os.path.isfile(args.standarize_with):
+                train = h5py.File(args.standarize_with, 'r')
+                mean = train['mean'][...]
+                std = train['std'][...]
+                label_mean = train['label_mean'][...]
+                label_std = train['label_std'][...]
+            else:
+                label_mean = outputs[index]['labels'][...].mean()
+                label_std = outputs[index]['labels'][...].std()
+                mean = outputs[index]['outputs'][...].mean()
+                std = outputs[index]['outputs'][...].std()
+            outputs[index]['labels'][...] -= label_mean
+            outputs[index]['labels'][...] /= label_std
+            outputs[index]['label_mean'] = label_mean
+            outputs[index]['label_std'] = label_std
+            outputs[index]['outputs'][...] -= mean
+            outputs[index]['outputs'][...] /= std
+            outputs[index]['mean'] = mean
+            outputs[index]['std'] = std
 elif args.dataset != None:
     LMDB = args.dataset
     iterator = get_lmdb_iterator(LMDB)
