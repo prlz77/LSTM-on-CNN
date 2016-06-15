@@ -62,5 +62,16 @@ LOG='' #for specific log file. default is ./logs/current_datetime.log. Usage LOG
 FLAGS='--standarize' # use '--sort' in case the image lists do not have ordered frames
 ```
 
+## Manual usage
+* `gen_outputs.py` receives a caffemodel, the images and the listfiles and creates an hdf5 file with the outputs.
+* `LSTM.lua` trains a LSTM with a training and validation hdf5 datasets with the following fields:
+  - `outputs`: `NxCxHxW` tensor of N images with `C` channels and spatial dims `HxW`.
+  - `labels`: `NxC` tensor of `N` labels of `C` dimensionality.
+  - `seq_numbers`: tensor of `N` numbers correponding to the video sequence from which the frame was extracted.
+
+Use the `--testonly` and `--saveOutputs` options of `LSTM.lua` in order to extract a HDF5 with the output of the network, and the `--load` option to reload a saved model.
+
+## Troubleshooting
+Please contact me if any problem. pau.rodri1 at gmail.com
 
 
