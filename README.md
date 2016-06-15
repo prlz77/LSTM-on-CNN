@@ -8,6 +8,8 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 3. Install torch http://torch.ch/
 4. Install `torch-hdf5` (https://github.com/deepmind/torch-hdf5/blob/master/doc/usage.md)
 5. `luarocks install nn cunn rnn optim gnuplot`
+6. `git clone this repository`
+7. Set your caffe installation path in `config.py`
 
 ## Automatic Script
 For automatic generation of the features and training the LSTM run:
