@@ -1,6 +1,14 @@
 # LSTM-on-CNN
 Extracts features from a pre-trained CNN and trains a LSTM.
 
+## Installation and dependences
+1. Install CUDA and CUDNN if possible.
+2. Install and compile caffe https://github.com/BVLC/caffe
+2. `pip install h5py numpy`
+3. Install torch http://torch.ch/
+4. Install `torch-hdf5` (https://github.com/deepmind/torch-hdf5/blob/master/doc/usage.md)
+5. `luarocks install nn cunn rnn optim gnuplot`
+
 ## Automatic Script
 For automatic generation of the features and training the LSTM run:
 
@@ -9,8 +17,8 @@ For automatic generation of the features and training the LSTM run:
 ```
 ### Data Format
 * Images in a OpenCV compatible format (jpg, png, etc.)
-* A file with the ordered list of *train* frames. ```./path/to/frame_x.jpg label sequence_number\n...```
-* A file with the ordered list of *validation* frames. ```./path/to/frame_x.jpg label sequence_number\n...```
+* A file with the ordered list of *train* frames. `./path/to/frame_x.jpg label sequence_number\n...`
+* A file with the ordered list of *validation* frames. `./path/to/frame_x.jpg label sequence_number\n...`
 
 All the frames from the same video sequence must have the same sequence number.
 
