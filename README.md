@@ -72,6 +72,6 @@ FLAGS='--standarize' # use '--sort' in case the image lists do not have ordered 
 Use the `--testonly` and `--saveOutputs` options of `LSTM.lua` in order to extract a HDF5 with the output of the network, and the `--load` option to reload a saved model.
 
 ## Troubleshooting
-Please contact me if any problem. pau.rodri1 at gmail.com
+Please contact me if any problem. `pau.rodri1 at gmail.com`
 
 
