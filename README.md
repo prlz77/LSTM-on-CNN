@@ -25,6 +25,8 @@ For automatic generation of the features and training the LSTM run:
 
 All the frames from the same video sequence must have the same sequence number.
 
+Since the LSTM is fed with CNN feature maps, a pre-trained model is needed. For generic baselines I would recommend any of the famous caffemodels in https://github.com/BVLC/caffe/wiki/Model-Zoo. For better results, fine-tune one of them with the specific dataset. Before using it with this code.
+
 ### Configuration
 The script can be configured from inside:
 
