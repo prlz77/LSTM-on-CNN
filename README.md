@@ -4,12 +4,13 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 ## Installation and dependences
 1. Install CUDA and CUDNN if possible.
 2. Install and compile caffe https://github.com/BVLC/caffe
-2. `pip install h5py numpy`
-3. Install torch http://torch.ch/
-4. Install `torch-hdf5` (https://github.com/deepmind/torch-hdf5/blob/master/doc/usage.md)
-5. `luarocks install nn cunn rnn optim gnuplot`
-6. `git clone this repository`
-7. Set your caffe installation path in `config.py`
+3. `pip install h5py numpy`
+4. Install opencv and python-opencv
+5. Install torch http://torch.ch/
+6. Install `torch-hdf5` (https://github.com/deepmind/torch-hdf5/blob/master/doc/usage.md)
+7. `luarocks install nn cunn rnn optim gnuplot`
+8. `git clone this repository`
+9. Set your caffe installation path in `config.py`
 
 ## Automatic Script
 For automatic generation of the features and training the LSTM run:
