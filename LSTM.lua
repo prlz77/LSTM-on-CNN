@@ -45,6 +45,9 @@ cmd:option('--depth', 1, 'number of hidden layers')
 --cmd:option('--zeroFirst', false, 'first step will forward zero through recurrence (i.e. add bias of recurrence). As opposed to learning bias specifically for first step.')
 cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout probability)')
 
+-- loss
+cmd:option('--task', 'regress', 'main LSTM task [regress | classify]')
+
 -- other
 cmd:option('--printEvery', 0, 'print loss every n iters')
 cmd:option('--testEvery', 1, 'print test accuracy every n epochs')
@@ -119,7 +122,12 @@ end
 print(rnn)
 
 -- build criterion
-local criterion = nn.MSECriterion():cuda()
+local criterion
+if opt.task == 'regress' then
+    criterion = nn.MSECriterion():cuda()
+else
+    criterion = nn.CrossEntropyCriterion():cuda()
+end
 
 -- optimizer state
 local optimState = {learningRate = opt.learningRate}
@@ -197,6 +205,7 @@ function test()
     output:write('labels', targetHist)
     output:close()
   end
+  if opt.task == 'class'
   return loss / valIters, outputs
 end
 
