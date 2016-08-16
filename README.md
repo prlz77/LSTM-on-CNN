@@ -54,6 +54,7 @@ RHO=5 # max sequence length. n when doing n-to-1.
 BATCHSIZE=32 # should be as big as possible
 EPOCHS=100000
 DROPOUT_PROB=0
+TASK='regress' # task should be in {regress, classify}
 
 # Other
 SNAPSHOT_EVERY=10 #number of epochs to save current model. Set 0 for never.
