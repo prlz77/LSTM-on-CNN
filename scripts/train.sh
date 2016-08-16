@@ -29,6 +29,7 @@ RHO=5 # max sequence length. n when doing n-to-1.
 BATCHSIZE=32 # should be as big as possible
 EPOCHS=100000
 DROPOUT_PROB=0
+TASK='regress' # task should be in {regress, classify}
 
 # Other
 SNAPSHOT_EVERY=10 #number of epochs to save current model. Set 0 for never.
@@ -53,4 +54,5 @@ if [[ $LOG != '' ]]; then
 fi
 th LSTM.lua --trainPath "./outputs/train_"$EXTRACT_FROM".h5" --valPath "./outputs/val_"$EXTRACT_FROM".h5" \
             --rho $RHO --hiddenSize $HIDDEN_LAYER_SIZE --depth $RECURRENT_DEPTH --batchSize $BATCHSIZE \
-            --dropoutProb $DROPOUT_PROB  --plotRegression $PLOT $LOG --saveEvery $SNAPSHOT_EVERY --maxEpoch $EPOCHS
+            --dropoutProb $DROPOUT_PROB  --plotRegression $PLOT $LOG --task $TASK \
+            --saveEvery $SNAPSHOT_EVERY --maxEpoch $EPOCHS
