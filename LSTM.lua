@@ -47,6 +47,7 @@ cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout proba
 
 -- loss
 cmd:option('--task', 'regress', 'main LSTM task [regress | classify]')
+cmd:option('--nlabels', 0, 'number of output neurons (max(labels) by default)')
 
 -- other
 cmd:option('--printEvery', 0, 'print loss every n iters')
@@ -84,7 +85,11 @@ local valIters = math.floor(valDB.N / valDB.bs)
 local dataDim = trainDB.dim[2]*trainDB.dim[3]*trainDB.dim[4] -- get flat data dimensions
 -- start logger
 logger = optim.Logger(opt.logPath)
-logger:setNames{'epoch', 'train error', 'test error'}
+if opt.task == 'regress' then
+	logger:setNames{'epoch', 'train error', 'test error'}
+else
+	logger:setNames{'epoch', 'train error', 'test error', 'accuracy'}
+end
 
 if opt.load == '' then
   -- turn on recurrent batchnorm
@@ -103,7 +108,17 @@ if opt.load == '' then
       rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
     end
   end
-  rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, trainDB.ldim[2])))
+  if opt.task == 'regress' then
+  	rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, trainDB.ldim[2])))
+  else
+  	local nlabels
+  	if opt.nlabels > 0 then
+  		nlabels = opt.nlabels
+  	else
+  		nlabels = trainDB.maxLabel
+  	end
+  	rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, nlabels)))
+  end
   rnn:add(nn.SelectTable(-1))
 
   -- CPU -> GPU
@@ -128,6 +143,7 @@ if opt.task == 'regress' then
 else
     criterion = nn.CrossEntropyCriterion():cuda()
 end
+print(criterion)
 
 -- optimizer state
 local optimState = {learningRate = opt.learningRate}
@@ -176,12 +192,17 @@ function test()
   local loss = 0
   local outputHist = {}
   local targetHist = {}
+  accuracy = 0
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
     inputs, targets = valDB:getBatch()
     inputs = inputs:resize(valDB.bs,opt.rho,dataDim):cuda()
     targets = targets[{{},-1,{}}]:resize(valDB.bs, valDB.ldim[2]):cuda()
     local outputs = rnn:forward(inputs)
+    if opt.task == 'classify' then
+    	max, ind = torch.max(outputs, 2)
+    	accuracy = accuracy + ind:eq(targets):sum() / outputs:size(1)
+    end
     if opt.plotRegression ~= 0 or opt.saveOutputs ~= '' then
       --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D
       outputHist[iter] = outputs:float():view(-1)
@@ -191,7 +212,10 @@ function test()
     xlua.progress(iter, valIters)
     loss = loss + f
   end
-  if (epoch % opt.plotRegression) == 0 then
+  if opt.task == 'classify' then
+  	print('Accuracy ' .. accuracy / valIters)
+  end
+  if opt.task == 'regress' and (epoch % opt.plotRegression) == 0 then
     outputHist = nn.JoinTable(1,1):forward(outputHist)
     targetHist = nn.JoinTable(1,1):forward(targetHist)
     --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
@@ -205,7 +229,6 @@ function test()
     output:write('labels', targetHist)
     output:close()
   end
-  if opt.task == 'class'
   return loss / valIters, outputs
 end
 
@@ -223,7 +246,11 @@ while epoch < opt.maxEpoch do
     testLoss = test()
     print('Avg test loss: '..testLoss)
   end
-  logger:add({epoch, trainLoss, testLoss})
+  if opt.task == 'regress' then
+  	logger:add({epoch, trainLoss, testLoss})
+  else
+    logger:add({epoch, trainLoss, testLoss, accuracy})
+  end
   if (epoch % opt.saveEvery) == 0 then
     torch.save(opt.savePath..'/model_'..epoch..'.t7',lightModel)
   end

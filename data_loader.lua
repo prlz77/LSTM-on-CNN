@@ -30,6 +30,7 @@ function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
   self.seqStart = {}
   self.dataTensor = torch.Tensor(batchSize, rho, self.dim[2], self.dim[3], self.dim[4])
   self.targetTensor = torch.Tensor(batchSize, rho, self.ldim[2])
+  self.maxLabel = self.labels:all():max()
   print("Counting sequence start frames...")
   for i = 1, self.dim[1] do
     local seq = self.seqNums:partial({i,i})[1]
