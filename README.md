@@ -67,7 +67,7 @@ FLAGS='--standarize' # use '--sort' in case the image lists do not have ordered 
 ```
 
 ## Notes on Classification task
-Remember lua (and torch) index vectors from 1 instead of 0. Thus, labels should be an integer from 1 to #labels.
+Remember lua (and torch) indexes vectors starting from 1 instead of 0. Thus, labels should be an integer from 1 to #labels.
 By default the number of labels is ``max(labels)`` but can be manually set using ``--nlabels``
 
 ## Manual usage
