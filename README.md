@@ -66,6 +66,10 @@ LOG='' #for specific log file. default is ./logs/current_datetime.log. Usage LOG
 FLAGS='--standarize' # use '--sort' in case the image lists do not have ordered frames
 ```
 
+## Notes on Classification task
+Remember lua (and torch) index vectors from 1 instead of 0. Thus, labels should be an integer from 1 to #labels.
+By default the number of labels is ``max(labels)`` but can be manually set using ``--nlabels``
+
 ## Manual usage
 * `gen_outputs.py` receives a caffemodel, the images and the listfiles and creates an hdf5 file with the outputs.
 * `LSTM.lua` trains a LSTM with a training and validation hdf5 datasets with the following fields:
