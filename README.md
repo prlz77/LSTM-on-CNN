@@ -12,6 +12,9 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 8. `git clone this repository`
 9. Set your caffe installation path in `config.py`
 
+## Docker Image
+You can download it from `prlz77/lstm-on-cnn`. It is a private repo, if you need it just send me an e-mail.
+
 ## Automatic Script
 For automatic generation of the features and training the LSTM run:
 
