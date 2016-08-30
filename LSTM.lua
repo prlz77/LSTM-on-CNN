@@ -216,14 +216,16 @@ function test()
   	print('Accuracy ' .. accuracy / valIters)
   end
   if opt.task == 'regress' and (epoch % opt.plotRegression) == 0 then
-    outputHist = nn.JoinTable(1,1):forward(outputHist)
-    targetHist = nn.JoinTable(1,1):forward(targetHist)
+    outputHist_join = nn.JoinTable(1,1):forward(outputHist)
+    targetHist_join = nn.JoinTable(1,1):forward(targetHist)
     --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
     -- edge efects if rho > 1 because we need rho frames to predict the last one
-    gnuplot.plot({'outputs', outputHist, '-'},{'targets', targetHist, '-'})
+    gnuplot.plot({'outputs', outputHist_join, '-'},{'targets', targetHist_join, '-'})
     --gnuplot.plot({'inputs', inputHist, '.'},{'outputs', outputHist, '-'},{'targets', targetHist, '-'}) --uncomment if 1D
   end
   if opt.saveOutputs ~= '' then
+    outputHist = nn.JoinTable(1,1):forward(outputHist)
+    targetHist = nn.JoinTable(1,1):forward(targetHist)    
     local output = hdf5.open(opt.saveOutputs, 'w')
     output:write('outputs', outputHist)
     output:write('labels', targetHist)
