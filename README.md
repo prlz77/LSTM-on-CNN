@@ -1,6 +1,13 @@
 # LSTM-on-CNN
 Extracts features from a pre-trained CNN and trains a LSTM.
 
+**Updates**
+* (Recent) Correct and incorrect data examples in this README
+* Docker Image.
+* Added Classification tests.
+* Added Classification task.
+
+
 ## Installation and dependences
 1. Install CUDA and CUDNN if possible.
 2. Install and compile caffe https://github.com/BVLC/caffe
@@ -37,9 +44,9 @@ path label 3
 path label 1
 path label 2
 path label 3
-
+```
 Correct way:
-
+```
 path label 1 (frame 1 of seq 1)
 path label 1 (frame 2 of seq 1)
 path label 1 (...)
@@ -106,6 +113,9 @@ By default the number of labels is ``max(labels)`` but can be manually set using
   - `seq_numbers`: tensor of `N` numbers correponding to the video sequence from which the frame was extracted.
 
 Use the `--testonly` and `--saveOutputs` options of `LSTM.lua` in order to extract a HDF5 with the output of the network, and the `--load` option to reload a saved model.
+
+## Tests
+I added some tests to verify it correctly works. You can run them as well to check everything is fine.
 
 ## Troubleshooting
 Please contact me if any problem `pau.rodriguez at uab.cat`
