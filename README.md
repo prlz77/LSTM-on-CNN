@@ -26,7 +26,32 @@ For automatic generation of the features and training the LSTM run:
 * A file with the ordered list of *train* frames. `./path/to/frame_x.jpg label sequence_number\n...`
 * A file with the ordered list of *validation* frames. `./path/to/frame_x.jpg label sequence_number\n...`
 
-All the frames from the same video sequence must have the same sequence number.
+All the frames from the same video sequence must have the same sequence number. The order is important, e.g:
+
+Wrong sequence numbering:
+
+path label 1
+path label 2
+path label 3
+...
+path label 1
+path label 2
+path label 3
+
+Correct way:
+
+path label 1 (frame 1 of seq 1)
+path label 1 (frame 2 of seq 1)
+path label 1 (...)
+....
+path label 2 (frame 1 of seq 2)
+path label 2 (frame 2 of seq 2)
+path label 2 (...)
+...
+3
+3
+3
+...
 
 Since the LSTM is fed with CNN feature maps, a pre-trained model is needed. For generic baselines I would recommend any of the famous caffemodels in https://github.com/BVLC/caffe/wiki/Model-Zoo. For better results, fine-tune one of them with the specific dataset. Before using it with this code.
 
