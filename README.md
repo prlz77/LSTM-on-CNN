@@ -70,8 +70,8 @@ The script can be configured from inside:
 DEPLOY='smth.prototxt'
 CAFFEMODEL='smth.caffemodel'
 DATAROOT='root/to/images/'
-TRAIN_LIST='train/list.txt' # ex: ./class/0345435.jpg\n... label seq_num or ./0445342.jpg\n... label seq_num, etc.
-VAL_LIST='val/list.txt' # ex: ./class/0345435.jpg\n... label seq_num or ./0445342.jpg\n... label seq_num, etc.
+TRAIN_LIST='train/list.txt' # ex: ./class/0345435.jpg label seq_num\n... or ./0445342.jpg label seq_num\n, etc.
+VAL_LIST='val/list.txt' # ex: ./class/0345435.jpg label seq_num\n... or ./0445342.jpg label seq_num\n, etc.
 
 # CONVNET PARAMS
 EXTRACT_FROM="fc7" # example from vgg16
