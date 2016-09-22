@@ -2,7 +2,8 @@
 Extracts features from a pre-trained CNN and trains a LSTM.
 
 **Updates**
-* (Recent) Correct and incorrect data examples in this README
+* AUC score, better sorting frames in gen_output, saving best outputs. (Recent)
+* Correct and incorrect data examples in this README
 * Docker Image.
 * Added Classification tests.
 * Added Classification task.
