@@ -4,7 +4,7 @@
 -- Institution: ISELAB in CVC-UAB
 -- Date: 14/06/2016
 -- Description: Performs regression with a LSTM neural network on arbitrary sequential hdf5 data in the form n-to-one. 
---              It also has plotting features and allows to save outputs for further processing.
+-- It also has plotting features and allows to save outputs for further processing.
 
 require 'rnn'
 require 'cutorch'
@@ -14,6 +14,7 @@ require 'optim'
 require 'data_loader'
 require 'paths'
 require 'gnuplot'
+require 'math'
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
@@ -31,6 +32,7 @@ cmd:option('--batchSize', 32, 'number of examples per batch')
 -- model i/0
 cmd:option('--load', '', 'Load LSTM pre-trained weights')
 cmd:option('--saveOutputs', '', '.h5 file path to save outputs')
+cmd:option('--saveBestOutputs', '', '.h5 file path to save best outputs')
 
 --cmd:option('--cuda', false, 'use CUDA')
 --cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -57,6 +59,7 @@ cmd:option('--savePath', './snapshots', 'save snapshots here')
 cmd:option('--saveEvery', 0, 'number of epochs to save model snapshot')
 cmd:option('--plotRegression', 0, 'number of epochs to plot regression approximation')
 cmd:option('--testOnly', false, 'Test only flag')
+cmd:option('--auc', false, 'Save auc flag')
 cmd:text()
 
 opt = cmd:parse(arg or {})
@@ -72,7 +75,7 @@ if opt.logPath == '' then
   paths.mkdir('./logs')
   opt.logPath = paths.concat('./logs', os.date("%d_%m_%y-%T")..'.log')
 else
-  paths.mkdir(paths.dir(opt.logPath))
+  paths.mkdir(paths.dirname(opt.logPath))
 end
 
 -- initialize dataset
@@ -86,7 +89,11 @@ local dataDim = trainDB.dim[2]*trainDB.dim[3]*trainDB.dim[4] -- get flat data di
 -- start logger
 logger = optim.Logger(opt.logPath)
 if opt.task == 'regress' then
-	logger:setNames{'epoch', 'train error', 'test error'}
+    if opt.auc then
+	  logger:setNames{'epoch', 'train error', 'test error', 'auc'}
+    else
+      logger:setNames{'epoch', 'train error', 'test error'}
+    end
 else
 	logger:setNames{'epoch', 'train error', 'test error', 'accuracy'}
 end
@@ -186,12 +193,44 @@ function train()
   return loss / trainIters
 end
 
+local auc = function(outputs, targets)
+ -- sort the scores:
+         if not outputs:nElement() == 0 then return 0.5 end
+         local scores, sortind = torch.sort(outputs, 1, true)
+
+         -- construct the ROC curve:
+         local tpr = torch.DoubleTensor(outputs:nElement() + 1):zero()
+         local fpr = torch.DoubleTensor(outputs:nElement() + 1):zero()
+         for n = 2,scores:nElement() + 1 do
+            if targets[sortind[n - 1]] == 1 then
+               tpr[n], fpr[n] = tpr[n - 1] + 1, fpr[n - 1]
+            else
+               tpr[n], fpr[n] = tpr[n - 1], fpr[n - 1] + 1
+            end
+         end
+         tpr:div(targets:sum())
+         fpr:div(torch.mul(targets, -1):add(1):sum())
+
+         -- compute AUC:
+         local auc = torch.cmul(
+            tpr:narrow(1, 1, tpr:nElement() - 1),
+            fpr:narrow(1, 2, fpr:nElement() - 1) -
+            fpr:narrow(1, 1, fpr:nElement() - 1)):sum()
+
+         -- return AUC and ROC curve:
+         return auc, tpr, fpr
+end
+
+auc_score = nil
+local best_auc = -1
+
 function test()
   rnn:evaluate()
   -- keep avg loss
   local loss = 0
   local outputHist = {}
   local targetHist = {}
+  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '')
   accuracy = 0
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
@@ -203,7 +242,7 @@ function test()
     	max, ind = torch.max(outputs, 2)
     	accuracy = accuracy + ind:eq(targets):sum() / outputs:size(1)
     end
-    if opt.plotRegression ~= 0 or opt.saveOutputs ~= '' then
+    if saveHist then
       --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D
       outputHist[iter] = outputs:float():view(-1)
       targetHist[iter] = targets:float():view(-1)
@@ -215,22 +254,36 @@ function test()
   if opt.task == 'classify' then
   	print('Accuracy ' .. accuracy / valIters)
   end
-  if opt.task == 'regress' and (epoch % opt.plotRegression) == 0 then
-    outputHist_join = nn.JoinTable(1,1):forward(outputHist)
-    targetHist_join = nn.JoinTable(1,1):forward(targetHist)
+  if saveHist then
     --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
     -- edge efects if rho > 1 because we need rho frames to predict the last one
-    gnuplot.plot({'outputs', outputHist_join, '-'},{'targets', targetHist_join, '-'})
+    outputHist_join = nn.JoinTable(1,1):forward(outputHist)
+    targetHist_join = nn.JoinTable(1,1):forward(targetHist)
+    if opt.auc then
+      auc_score, tpr, fpr = auc(outputHist_join, targetHist_join:gt(0))
+      print('Auc:' .. auc_score)
+    end
+    if (epoch % opt.plotRegression) == 0 then
+      gnuplot.plot({'outputs', outputHist_join, '-'},{'targets', targetHist_join, '-'})
+    end
     --gnuplot.plot({'inputs', inputHist, '.'},{'outputs', outputHist, '-'},{'targets', targetHist, '-'}) --uncomment if 1D
+        
+    if opt.saveOutputs ~= '' then
+      local output = hdf5.open(opt.saveOutputs, 'w')
+      output:write('outputs', outputHist_join)
+      output:write('labels', targetHist_join)
+      output:close()
+    end
+
+    if opt.best_auc > auc_score then
+      best_auc = auc_score
+      local output = hdf5.open(opt.saveBestOutputs, 'w')
+      output:write('outputs', outputHist_join)
+      output:write('labels', targetHist_join)
+      output:close()
+    end
   end
-  if opt.saveOutputs ~= '' then
-    outputHist = nn.JoinTable(1,1):forward(outputHist)
-    targetHist = nn.JoinTable(1,1):forward(targetHist)    
-    local output = hdf5.open(opt.saveOutputs, 'w')
-    output:write('outputs', outputHist)
-    output:write('labels', targetHist)
-    output:close()
-  end
+      
   return loss / valIters, outputs
 end
 
@@ -249,7 +302,11 @@ while epoch < opt.maxEpoch do
     print('Avg test loss: '..testLoss)
   end
   if opt.task == 'regress' then
-  	logger:add({epoch, trainLoss, testLoss})
+    if opt.auc then
+      logger:add({epoch, trainLoss, testLoss, auc_score})
+    else
+      logger:add({epoch, trainLoss, testLoss})
+    end
   else
     logger:add({epoch, trainLoss, testLoss, accuracy})
   end

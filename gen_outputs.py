@@ -79,6 +79,15 @@ if args.flist != None:
         flist = infile.readlines()
         if args.sort:
             flist.sort()
+            current_seq = int(flist[0].split(' ')[-1].replace('\n', ''))
+            counter = 1
+            for i,v in enumerate(flist):
+                vsplit = v.split(" ")
+                seq = int(vsplit[-1].replace('\n', ''))
+                if seq != current_seq:
+                    current_seq = seq
+                    counter += 1
+                flist[i] = "%s %s %d\n" %(vsplit[0], vsplit[1], counter)
     for layer in args.layer:
         outputs.append(h5py.File(args.output + '_' + layer.replace('/','_') + '.h5', 'w'))
         dim = net.blobs[layer].data.shape

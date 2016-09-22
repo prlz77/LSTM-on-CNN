@@ -18,7 +18,7 @@ SequentialDB = class('SequentialDB')
 
 function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
   self.shuffle = false or shuffle
-  hdf5_fields = hdf5_fields or {data='data', labels='labels', seq='seq'}
+  hdf5_fields = hdf5_fields or {data='outputs', labels='labels', seq='seq_number'}
   self.db = hdf5.open(dataPath, 'r')
   self.data = self.db:read(hdf5_fields.data)
   self.dim = self.data:dataspaceSize()
