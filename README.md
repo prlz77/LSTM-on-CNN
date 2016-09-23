@@ -121,9 +121,13 @@ Given a train.txt and a test.txt file with: im_path label seq_num\n...
 
 If we want to save the images into a database after subtracting the mean, resizing to 100px X 100px, and standarizing the labels, we can call:
 
-```
-python images2h5.py images/root/folder train.txt --output train.h5 --size 100 --standarize --subtract_mean --output train.h5
-python images2h5.py images/root/folder test.txt --output test.h5 --size 100 --standarize --subtract_mean --output test.h5 --with_train train.h5 # we give the train.h5 so that the train mean, std, etc. are reused and we do not overfit.
+```bash
+# Save train.
+python images2h5.py images/root/folder train.txt --output train.h5 \
+--size 100 --standarize --subtract_mean --output train.h5
+# Save test. We indicate the train.h5 so that the train mean, std, etc. are reused and we do not overfit.
+python images2h5.py images/root/folder test.txt --output test.h5 \
+--size 100 --standarize --subtract_mean --output test.h5 --with_train train.h5 
 ```
 
 ## Tests
