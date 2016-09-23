@@ -221,8 +221,8 @@ local auc = function(outputs, targets)
          return auc, tpr, fpr
 end
 
-auc_score = nil
-local best_auc = -1
+aucScore = nil
+local bestAuc = -1
 
 function test()
   rnn:evaluate()
@@ -230,7 +230,7 @@ function test()
   local loss = 0
   local outputHist = {}
   local targetHist = {}
-  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '')
+  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestOutputs ~= '' )
   accuracy = 0
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
@@ -260,8 +260,8 @@ function test()
     outputHist_join = nn.JoinTable(1,1):forward(outputHist)
     targetHist_join = nn.JoinTable(1,1):forward(targetHist)
     if opt.auc then
-      auc_score, tpr, fpr = auc(outputHist_join, targetHist_join:gt(0))
-      print('Auc:' .. auc_score)
+      aucScore, tpr, fpr = auc(outputHist_join, targetHist_join:gt(0))
+      print('Auc:' .. aucScore)
     end
     if (epoch % opt.plotRegression) == 0 then
       gnuplot.plot({'outputs', outputHist_join, '-'},{'targets', targetHist_join, '-'})
@@ -275,8 +275,8 @@ function test()
       output:close()
     end
 
-    if opt.best_auc > auc_score then
-      best_auc = auc_score
+    if bestAuc > aucScore then
+      bestAuc = aucScore
       local output = hdf5.open(opt.saveBestOutputs, 'w')
       output:write('outputs', outputHist_join)
       output:write('labels', targetHist_join)
@@ -303,7 +303,7 @@ while epoch < opt.maxEpoch do
   end
   if opt.task == 'regress' then
     if opt.auc then
-      logger:add({epoch, trainLoss, testLoss, auc_score})
+      logger:add({epoch, trainLoss, testLoss, aucScore})
     else
       logger:add({epoch, trainLoss, testLoss})
     end
