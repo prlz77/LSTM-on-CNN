@@ -275,7 +275,7 @@ function test()
       output:close()
     end
 
-    if bestAuc > aucScore then
+    if bestAuc < aucScore then
       bestAuc = aucScore
       local output = hdf5.open(opt.saveBestOutputs, 'w')
       output:write('outputs', outputHist_join)
