@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+""" Generates the outputs of an arbitrary CNN layer. """
+
+__author__ = "Pau Rodríguez López, ISELAB, CVC-UAB"
+__email__ = "pau.rodri1@gmail.com"
+
 import argparse
 import h5py
 import cv2
