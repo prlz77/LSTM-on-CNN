@@ -2,7 +2,8 @@
 Extracts features from a pre-trained CNN and trains a LSTM.
 
 **Updates**
-* AUC score, better sorting frames in gen_output, saving best outputs. (Recent)
+* (Recent) Added script to save images into h5 file.
+* AUC score, better sorting frames in gen_output, saving best outputs.
 * Correct and incorrect data examples in this README
 * Docker Image.
 * Added Classification tests.
@@ -114,6 +115,16 @@ By default the number of labels is ``max(labels)`` but can be manually set using
   - `seq_numbers`: tensor of `N` numbers correponding to the video sequence from which the frame was extracted.
 
 Use the `--testonly` and `--saveOutputs` options of `LSTM.lua` in order to extract a HDF5 with the output of the network, and the `--load` option to reload a saved model.
+
+## How to save images into h5
+Given a train.txt and a test.txt file with: im_path label seq_num\n...
+
+If we want to save the images into a database after subtracting the mean, resizing to 100px X 100px, and standarizing the labels, we can call:
+
+```
+python images2h5.py images/root/folder train.txt --output train.h5 --size 100 --standarize --subtract_mean --output train.h5
+python images2h5.py images/root/folder test.txt --output test.h5 --size 100 --standarize --subtract_mean --output test.h5 --with_train train.h5 # we give the train.h5 so that the train mean, std, etc. are reused and we do not overfit.
+```
 
 ## Tests
 I added some tests to verify it correctly works. You can run them as well to check everything is fine.
