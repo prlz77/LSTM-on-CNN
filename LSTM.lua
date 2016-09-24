@@ -221,7 +221,7 @@ local auc = function(outputs, targets)
          return auc, tpr, fpr
 end
 
-aucScore = nil
+aucScore = 0
 local bestAuc = -1
 
 function test()
@@ -275,7 +275,7 @@ function test()
       output:close()
     end
 
-    if bestAuc < aucScore then
+    if opt.saveBestOutputs ~= '' and bestAuc < aucScore then
       bestAuc = aucScore
       local output = hdf5.open(opt.saveBestOutputs, 'w')
       output:write('outputs', outputHist_join)
