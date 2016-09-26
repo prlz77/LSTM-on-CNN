@@ -252,7 +252,8 @@ function test()
     loss = loss + f
   end
   if opt.task == 'classify' then
-  	print('Accuracy ' .. accuracy / valIters)
+	accuracy = accuracy / valIters
+  	print('Accuracy ' .. accuracy)
   end
   if saveHist then
     --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
