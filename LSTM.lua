@@ -32,7 +32,8 @@ cmd:option('--batchSize', 32, 'number of examples per batch')
 -- model i/0
 cmd:option('--load', '', 'Load LSTM pre-trained weights')
 cmd:option('--saveOutputs', '', '.h5 file path to save outputs')
-cmd:option('--saveBestOutputs', '', '.h5 file path to save best outputs')
+cmd:option('--saveBestAuc', '', '.h5 file path to save best outputs')
+cmd:option('--saveBestMSE', '', '.h5 file path to save best test mse outputs')
 
 --cmd:option('--cuda', false, 'use CUDA')
 --cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -223,6 +224,7 @@ end
 
 aucScore = 0
 local bestAuc = -1
+local bestMSE = 10000000
 
 function test()
   rnn:evaluate()
@@ -230,7 +232,7 @@ function test()
   local loss = 0
   local outputHist = {}
   local targetHist = {}
-  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestOutputs ~= '' )
+  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= ''  )
   accuracy = 0
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
@@ -251,6 +253,7 @@ function test()
     xlua.progress(iter, valIters)
     loss = loss + f
   end
+  loss = loss / valIters
   if opt.task == 'classify' then
 	accuracy = accuracy / valIters
   	print('Accuracy ' .. accuracy)
@@ -276,16 +279,25 @@ function test()
       output:close()
     end
 
-    if opt.saveBestOutputs ~= '' and bestAuc < aucScore then
+    if opt.saveBestAuc ~= '' and bestAuc < aucScore then
       bestAuc = aucScore
-      local output = hdf5.open(opt.saveBestOutputs, 'w')
+      local output = hdf5.open(opt.saveBestAuc, 'w')
       output:write('outputs', outputHist_join)
       output:write('labels', targetHist_join)
       output:close()
     end
+
+    if opt.saveBestMSE ~= '' and bestMSE > loss then
+        bestMSE = loss
+        local output = hdf5.open(opt.saveBestMSE, 'w')
+        output:write('outputs', outputHist_join)
+        output:write('labels', targetHist_join)
+        output:close()
+    end
+ 
   end
       
-  return loss / valIters, outputs
+  return loss, outputs
 end
 
 while epoch < opt.maxEpoch do
