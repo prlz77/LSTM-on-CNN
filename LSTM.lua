@@ -50,6 +50,7 @@ cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout proba
 
 -- loss
 cmd:option('--task', 'regress', 'main LSTM task [regress | classify]')
+cmd:option('--criterion', 'MSECriterion', 'loss type')
 cmd:option('--nlabels', 0, 'number of output neurons (max(labels) by default)')
 
 -- other
@@ -69,6 +70,10 @@ opt = cmd:parse(arg or {})
 -- choose device
 cutorch.setDevice(opt.useDevice)
 
+-- setting earlyStopping to max Epochs if necessary.
+if opt.earlyStop == 0 then
+  opt.earlyStop = opt.maxEpoch
+end
 -- snapshots folder
 if opt.saveEvery ~= 0 then
   opt.savePath=paths.concat(opt.savePath, os.date("%d_%m_%y-%T"))
@@ -93,15 +98,14 @@ local valIters = math.floor(valDB.N / valDB.bs)
 local dataDim = trainDB.dim[2]*trainDB.dim[3]*trainDB.dim[4] -- get flat data dimensions
 -- start logger
 logger = optim.Logger(opt.logPath)
-if opt.task == 'regress' then
-    if opt.auc then
-	  logger:setNames{'epoch', 'train error', 'test error', 'auc'}
-    else
-      logger:setNames{'epoch', 'train error', 'test error'}
-    end
-else
-	logger:setNames{'epoch', 'train error', 'test error', 'accuracy'}
+local names = {'epoch', 'train_error', 'test_error'}
+if opt.auc then
+  table.insert(names,'auc')
 end
+if opt.task == 'classify' then
+  table.insert(names, 'accuracy')
+end
+logger:setNames(names)
 
 if opt.load == '' then
   -- turn on recurrent batchnorm
@@ -151,7 +155,7 @@ print(rnn)
 -- build criterion
 local criterion
 if opt.task == 'regress' then
-    criterion = nn.MSECriterion():cuda()
+    criterion = nn[opt.criterion]():cuda()
 else
     criterion = nn.CrossEntropyCriterion():cuda()
 end
