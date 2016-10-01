@@ -2,7 +2,8 @@
 Extracts features from a pre-trained CNN and trains a LSTM.
 
 **Updates**
-* (Recent) Added script to save images into h5 file.
+* (Recent) Early stop. Choosing GPU.
+* Added script to save images into h5 file.
 * AUC score, better sorting frames in gen_output, saving best outputs.
 * Correct and incorrect data examples in this README
 * Docker Image.
