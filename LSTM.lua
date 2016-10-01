@@ -36,7 +36,7 @@ cmd:option('--saveBestAuc', '', '.h5 file path to save best outputs')
 cmd:option('--saveBestMSE', '', '.h5 file path to save best test mse outputs')
 
 --cmd:option('--cuda', false, 'use CUDA')
---cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
+cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
 cmd:option('--maxEpoch', 1000, 'maximum number of epochs to run')
 --cmd:option('--maxTries', 50, 'maximum number of epochs to try to find a better local minima for early-stopping')
 cmd:option('--uniform', 0.1, 'initialize parameters using uniform distribution between -uniform and uniform. -1 means default initialization')
@@ -61,9 +61,13 @@ cmd:option('--saveEvery', 0, 'number of epochs to save model snapshot')
 cmd:option('--plotRegression', 0, 'number of epochs to plot regression approximation')
 cmd:option('--testOnly', false, 'Test only flag')
 cmd:option('--auc', false, 'Save auc flag')
+cmd:option('--earlyStop', 0, 'Stop when test error plateaus for n epochs.')
 cmd:text()
 
 opt = cmd:parse(arg or {})
+
+-- choose device
+cutorch.setDevice(opt.useDevice)
 
 -- snapshots folder
 if opt.saveEvery ~= 0 then
@@ -225,7 +229,7 @@ end
 aucScore = 0
 local bestAuc = -1
 local bestMSE = 10000000
-
+local bestEpoch = 1
 function test()
   rnn:evaluate()
   -- keep avg loss
@@ -258,6 +262,10 @@ function test()
 	accuracy = accuracy / valIters
   	print('Accuracy ' .. accuracy)
   end
+  if loss < bestMSE then
+    bestMSE = loss
+    bestEpoch = epoch
+  end
   if saveHist then
     --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
     -- edge efects if rho > 1 because we need rho frames to predict the last one
@@ -287,8 +295,7 @@ function test()
       output:close()
     end
 
-    if opt.saveBestMSE ~= '' and bestMSE > loss then
-        bestMSE = loss
+    if opt.saveBestMSE ~= '' and epoch == bestEpoch then
         local output = hdf5.open(opt.saveBestMSE, 'w')
         output:write('outputs', outputHist_join)
         output:write('labels', targetHist_join)
@@ -325,6 +332,9 @@ while epoch < opt.maxEpoch do
   end
   if (epoch % opt.saveEvery) == 0 then
     torch.save(opt.savePath..'/model_'..epoch..'.t7',lightModel)
+  end
+  if epoch - bestEpoch > opt.earlyStop then
+    os.exit()
   end
   epoch = epoch + 1
   collectgarbage()
