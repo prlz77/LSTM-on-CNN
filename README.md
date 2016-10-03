@@ -18,7 +18,7 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 4. Install opencv and python-opencv
 5. Install torch http://torch.ch/
 6. Install `torch-hdf5` (https://github.com/deepmind/torch-hdf5/blob/master/doc/usage.md)
-7. `luarocks install nn cunn rnn optim gnuplot dp class`
+7. `luarocks install nn; luarocks install cunn; luarocks install rnn; luarocks install; luarocks install optim; luarocks install gnuplot; luarocks install dp; luarocks install class`
 8. `git clone this repository`
 9. Set your caffe installation path in `config.py`
 
