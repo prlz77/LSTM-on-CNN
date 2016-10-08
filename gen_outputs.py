@@ -119,27 +119,32 @@ if args.flist != None:
             outputs[index]['seq_number'][i] = seq_nums[-1]
         if i % 1000 == 0:
             print "Processing image ", i, " of ", len(flist)
-    if args.standarize:
-        for index, layer in enumerate(args.layer):
-            if os.path.isfile(args.standarize_with):
-                train = h5py.File(args.standarize_with, 'r')
-                mean = train['mean'][...]
-                std = train['std'][...]
-                label_mean = train['label_mean'][...]
-                label_std = train['label_std'][...]
-            else:
-                label_mean = outputs[index]['labels'][...].mean()
-                label_std = outputs[index]['labels'][...].std()
-                mean = outputs[index]['outputs'][...].mean()
-                std = outputs[index]['outputs'][...].std()
-            outputs[index]['labels'][...] -= label_mean
-            outputs[index]['labels'][...] /= label_std
-            outputs[index]['label_mean'] = label_mean
-            outputs[index]['label_std'] = label_std
-            outputs[index]['outputs'][...] -= mean
-            outputs[index]['outputs'][...] /= std
-            outputs[index]['mean'] = mean
-            outputs[index]['std'] = std
+
+    for index, layer in enumerate(args.layer):
+        if os.path.isfile(args.standarize_with):
+            train = h5py.File(args.standarize_with, 'r')
+            mean = train['mean'][...]
+            std = train['std'][...]
+            label_mean = train['label_mean'][...]
+            label_std = train['label_std'][...]
+        elif args.standarize:
+            label_mean = outputs[index]['labels'][...].mean()
+            label_std = outputs[index]['labels'][...].std()
+            mean = outputs[index]['outputs'][...].mean()
+            std = outputs[index]['outputs'][...].std()
+        else:
+            mean = 0.0
+            std = 1.0
+    if args.standarize or os.path.isfile(args.standarize_with):
+        outputs[index]['labels'][...] -= label_mean
+        outputs[index]['labels'][...] /= label_std
+        outputs[index]['label_mean'] = label_mean
+        outputs[index]['label_std'] = label_std
+        outputs[index]['outputs'][...] -= mean
+        outputs[index]['outputs'][...] /= std
+        outputs[index]['mean'] = mean
+        outputs[index]['std'] = std
+
 elif args.dataset != None:
     LMDB = args.dataset
     iterator = get_lmdb_iterator(LMDB)
