@@ -65,6 +65,10 @@ function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
   self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end
 
+function SequentialDB:reset()
+  self.batchIndexs = torch.linspace(1, self.bs, self.bs)
+end
+
 function SequentialDB:getBatch()
   for i = 1,self.bs do
     local seqInterval = {self.sequences[self.batchIndexs[i]][1], self.sequences[self.batchIndexs[i]][2]}

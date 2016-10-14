@@ -236,6 +236,8 @@ local bestMSE = 10000000
 local bestEpoch = 1
 function test()
   rnn:evaluate()
+  -- Discard last frames to make it multiple of rho*batchSize
+  valDB:reset()
   -- keep avg loss
   local loss = 0
   local outputHist = {}
@@ -250,7 +252,7 @@ function test()
     local outputs = rnn:forward(inputs)
     if opt.task == 'classify' then
     	max, ind = torch.max(outputs, 2)
-    	accuracy = accuracy + ind:eq(targets):sum() / outputs:size(1)
+    	accuracy = accuracy + ind:float():cuda():eq(targets):sum() / outputs:size(1)
     end
     if saveHist then
       --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D
@@ -276,7 +278,7 @@ function test()
     outputHist_join = nn.JoinTable(1,1):forward(outputHist)
     targetHist_join = nn.JoinTable(1,1):forward(targetHist)
     if opt.auc then
-      aucScore, tpr, fpr = auc(outputHist_join, targetHist_join:gt(0))
+      aucScore, tpr, fpr = auc(outputHist_join, torch.gt(targetHist_join,0))
       print('Auc:' .. aucScore)
     end
     if (epoch % opt.plotRegression) == 0 then
