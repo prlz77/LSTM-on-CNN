@@ -322,7 +322,7 @@ function test()
     if confusion then
 	confusion:updateValids()
         fConfMat:write('epoch: '..epoch..'\n')
-	fConfMat:write(confusion:__tostring__())
+	fConfMat:write(confusion:__tostring__()..'\n')
         fConfMat:flush()
     end
   end
