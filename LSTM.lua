@@ -140,7 +140,7 @@ if opt.load == '' then
   -- CPU -> GPU
   rnn:cuda()
 	
-if nlabels and opt.confMat != '' then
+if nlabels and opt.confMat ~= '' then
   -- Confusion matrix
   fConfMat = io.open(opt.confMat, 'w')
   confusion = optim.ConfusionMatrix(nlabels)
