@@ -250,7 +250,9 @@ function test()
   local targetHist = {}
   local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= ''  )
   accuracy = 0
-  confusion:zero()
+  if confusion then
+    confusion:zero()
+  end
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
     inputs, targets = valDB:getBatch()
