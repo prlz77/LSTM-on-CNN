@@ -57,6 +57,7 @@ cmd:option('--nlabels', 0, 'number of output neurons (max(labels) by default)')
 cmd:option('--printEvery', 0, 'print loss every n iters')
 cmd:option('--testEvery', 1, 'print test accuracy every n epochs')
 cmd:option('--logPath', '', 'log here')
+cmd:option('--confMat', '', 'save confusion matrix here')
 cmd:option('--savePath', './snapshots', 'save snapshots here')
 cmd:option('--saveEvery', 0, 'number of epochs to save model snapshot')
 cmd:option('--plotRegression', 0, 'number of epochs to plot regression approximation')
@@ -127,7 +128,6 @@ if opt.load == '' then
   if opt.task == 'regress' then
   	rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, trainDB.ldim[2])))
   else
-  	local nlabels
   	if opt.nlabels > 0 then
   		nlabels = opt.nlabels
   	else
@@ -139,7 +139,13 @@ if opt.load == '' then
 
   -- CPU -> GPU
   rnn:cuda()
-
+	
+if nlabels and opt.confMat != '' then
+  -- Confusion matrix
+  fConfMat = io.open(opt.confMat, 'w')
+  confusion = optim.ConfusionMatrix(nlabels)
+end
+		
   -- random init weights
   for k,param in ipairs(rnn:parameters()) do
     param:uniform(-opt.uniform, opt.uniform)
@@ -244,6 +250,7 @@ function test()
   local targetHist = {}
   local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= ''  )
   accuracy = 0
+  confusion:zero()
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
     inputs, targets = valDB:getBatch()
@@ -253,6 +260,9 @@ function test()
     if opt.task == 'classify' then
     	max, ind = torch.max(outputs, 2)
     	accuracy = accuracy + ind:float():cuda():eq(targets):sum() / outputs:size(1)
+    end
+    if confusion then
+      confusion:batchAdd(outputs, targets) 
     end
     if saveHist then
       --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D
@@ -307,7 +317,12 @@ function test()
         output:write('labels', targetHist_join)
         output:close()
     end
- 
+    if confusion then
+	confusion:updateValids()
+        fConfMat:write('epoch: '..epoch..'\n')
+	fConfMat:write(confusion:__tostring__())
+        fConfMat:flush()
+    end
   end
       
   return loss, outputs
