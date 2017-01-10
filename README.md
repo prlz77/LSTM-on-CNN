@@ -1,5 +1,17 @@
 # LSTM-on-CNN
-Extracts features from a pre-trained CNN and trains a LSTM. The code has been used in the following publications:
+Extracts features from a pre-trained CNN and trains a LSTM. 
+
+**Updates**
+* (Recent) Early stop. Choosing GPU.
+* Added script to save images into h5 file.
+* AUC score, better sorting frames in gen_output, saving best outputs.
+* Correct and incorrect data examples in this README
+* Docker Image.
+* Added Classification tests.
+* Added Classification task.
+
+## Publications
+The code has been used in the following publications:
 
 ```
 @inproceedings{bellantonio2016spatio,
@@ -10,17 +22,6 @@ Extracts features from a pre-trained CNN and trains a LSTM. The code has been us
   organization={Springer}
 }
 ```
-
-
-
-**Updates**
-* (Recent) Early stop. Choosing GPU.
-* Added script to save images into h5 file.
-* AUC score, better sorting frames in gen_output, saving best outputs.
-* Correct and incorrect data examples in this README
-* Docker Image.
-* Added Classification tests.
-* Added Classification task.
 
 ## Installation and dependences
 1. Install CUDA and CUDNN if possible.
