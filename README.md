@@ -1,5 +1,17 @@
 # LSTM-on-CNN
-Extracts features from a pre-trained CNN and trains a LSTM.
+Extracts features from a pre-trained CNN and trains a LSTM. The code has been used in the following publications:
+
+```
+@inproceedings{bellantonio2016spatio,
+  title={Spatio-Temporal Pain Recognition in CNN-based Super-Resolved Facial Images},
+  author={Bellantonio, Marco and Haque, Mohammad A and Rodriguez, Pau and Nasrollahi, Kamal and Telve, Taisi and Escarela, Sergio and Gonzalez, Jordi and Moeslund, Thomas B and Rasti, Pejman and Anbarjafari, Gholamreza},
+  booktitle={International Conference on Pattern Recognition (icpr)},
+  year={2016},
+  organization={Springer}
+}
+```
+
+
 
 **Updates**
 * (Recent) Early stop. Choosing GPU.
@@ -9,7 +21,6 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 * Docker Image.
 * Added Classification tests.
 * Added Classification task.
-
 
 ## Installation and dependences
 1. Install CUDA and CUDNN if possible.
