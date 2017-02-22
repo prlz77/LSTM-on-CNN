@@ -11,11 +11,12 @@
 --                           produce: 1112222.
 
 require 'hdf5'
+require 'math'
 local class = require 'class'
 SequentialDB = class('SequentialDB')
 
 
-function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
+function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields)
   self.shuffle = false or shuffle
   hdf5_fields = hdf5_fields or {data='outputs', labels='labels', seq='seq_number'}
   self.db = hdf5.open(dataPath, 'r')
@@ -25,34 +26,28 @@ function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
   self.labels = self.db:read(hdf5_fields.labels)
   self.ldim = self.labels:dataspaceSize()
   self.bs = batchSize
-  self.rho = rho
-  self.seqStart = {}
-  self.dataTensor = torch.Tensor(batchSize, rho, self.dim[2], self.dim[3], self.dim[4])
-  self.targetTensor = torch.Tensor(batchSize, rho, self.ldim[2])
+  self.rho = 0 
   self.maxLabel = self.labels:all():max()
-  print("Counting sequence start frames...")
+  print("Generating Sequences")
+  self.sequences = {}
+  local prevSeq = self.seqNums:partial({1,1})[1]
+  local start = 1
   for i = 1, self.dim[1] do
     local seq = self.seqNums:partial({i,i})[1]
-    if self.seqStart[seq] == nil then
-      self.seqStart[seq] = i
-      if #self.seqStart > 1 then
-        assert((i - self.seqStart[seq - 1]) >= self.rho)
-      end
+    if seq ~= prevSeq then
+        table.insert(self.sequences, {start, i - 1})
+        self.rho = math.max(self.rho, i - start) -- note that the end frame is i-1 not i.
+        start = i
+        prevSeq = seq
     end
   end
-  print('Pre-generating sequence indexs, might take a while...')
-  self.sequences = {}
-  local iterator = 1
-  local eob = false
-  while iterator + self.rho - 1 <= self.dim[1] do
-    local seq = self.seqNums:partial({iterator,iterator})[1]
-    local seq2 = self.seqNums:partial({iterator+self.rho-1, iterator+self.rho-1})[1]
-    if seq ~= seq2 then
-      iterator = self.seqStart[seq2]
-    end
-    table.insert(self.sequences, {iterator, iterator + self.rho - 1})
-    iterator = iterator + 1
-  end
+  table.insert(self.sequences, {start, self.dim[1]})
+  self.rho = math.max(self.rho, 1 + self.dim[1] - start)
+
+  -- Output tensors
+  self.dataTensor = torch.Tensor(batchSize, self.rho, self.dim[2], self.dim[3], self.dim[4])
+  self.targetTensor = torch.Tensor(batchSize, self.rho, self.ldim[2])
+   
   self.N = #self.sequences
   self.sequences = torch.IntTensor(self.sequences)
   assert(self.bs <= self.N)
@@ -69,10 +64,13 @@ function SequentialDB:reset()
 end
 
 function SequentialDB:getBatch()
+  self.dataTensor:zero()
+  self.targetTensor:zero()
   for i = 1,self.bs do
     local seqInterval = {self.sequences[self.batchIndexs[i]][1], self.sequences[self.batchIndexs[i]][2]}
-    self.dataTensor[{i}] = self.data:partial(seqInterval,{1,self.dim[2]},{1,self.dim[3]},{1,self.dim[4]})
-    self.targetTensor[i] = self.labels:partial(seqInterval,{1,self.ldim[2]})
+    local pad = self.rho - (seqInterval[2] - seqInterval[1] + 1) --zero padding
+    self.dataTensor[{i, {pad + 1,self.rho}}] = self.data:partial(seqInterval,{1,self.dim[2]},{1,self.dim[3]},{1,self.dim[4]})
+    self.targetTensor[{i, {pad + 1, self.rho}}] = self.labels:partial(seqInterval,{1,self.ldim[2]})
     self.batchIndexs[i] = 1 + ((self.batchIndexs[i] + self.bs - 1) % self.N)
   end
   return self.dataTensor, self.targetTensor
