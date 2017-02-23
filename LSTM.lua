@@ -122,6 +122,8 @@ if opt.auc then
   table.insert(names,'auc')
 end
 if opt.task == 'classify' then
+  trainDB:minLabelToOne()
+  valDB:minLabelToOne()
   table.insert(names, 'accuracy')
 end
 logger:setNames(names)

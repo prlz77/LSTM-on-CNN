@@ -64,6 +64,12 @@ function SequentialDB:__init(dataPath, batchSize, rho, shuffle, hdf5_fields)
   self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end
 
+-- Make sure the labels start by one
+function SequentialDB:minLabelToOne()
+    self.offset = self.offset or (1 - self.labels:all():min())
+    return self.offset == 0
+end
+
 function SequentialDB:reset()
   self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end
@@ -74,6 +80,9 @@ function SequentialDB:getBatch()
     self.dataTensor[{i}] = self.data:partial(seqInterval,{1,self.dim[2]},{1,self.dim[3]},{1,self.dim[4]})
     self.targetTensor[i] = self.labels:partial(seqInterval,{1,self.ldim[2]})
     self.batchIndexs[i] = 1 + ((self.batchIndexs[i] + self.bs - 1) % self.N)
+  end
+  if self.offset == 1 then
+      self.targetTensor:add(1)
   end
   return self.dataTensor, self.targetTensor
 end
