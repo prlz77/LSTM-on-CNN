@@ -59,6 +59,10 @@ function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields)
   self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end
 
+function SequentialDB:minLabelIsOne()
+    return self.labels:all():min() == 1
+end
+
 function SequentialDB:reset()
   self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end

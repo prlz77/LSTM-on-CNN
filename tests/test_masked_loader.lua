@@ -7,6 +7,12 @@ MIN_SEQ = 100
 MAX_BS = 100
 MAX_ITER = 10
 print('Testing...')
+print('checking minLabelIsOne method')
+local loader0 = SequentialDB('./tests/toydata2.h5', 1, false)
+assert(not loader0:minLabelIsOne())
+local loader1 = SequentialDB('./tests/toydata3.h5', 1, false)
+assert(loader1:minLabelIsOne())
+print('loading toy dataset')
 f = hdf5.open('./tests/toydata.h5','r')
 data = f:read('outputs'):all()
 seq = f:read('seq'):all()

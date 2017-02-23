@@ -4,17 +4,7 @@
 __author__ = "Pau Rodríguez López, ISELAB, CVC-UAB"
 __email__ = "pau.rodri1@gmail.com"
 
-
-import sys
-import os
-sys.path.insert(0, os.path.realpath(__file__))
-from config import CAFFE_PATH
-sys.path.insert(0, os.path.join(CAFFE_PATH, 'python'))
-import caffe
 import argparse
-import h5py
-import numpy as np
-
 
 # CMD Options
 parser = argparse.ArgumentParser(description="""Generates the outputs of an arbitrary CNN layer
@@ -37,6 +27,16 @@ parser.add_argument('--verbose', action='store_true', help='show image paths whi
 
 args = parser.parse_args()
 
+# Move the rest of imports to avoid conflicts with argparse
+import sys
+import os
+sys.path.insert(0, os.path.realpath(__file__))
+from config import CAFFE_PATH
+sys.path.insert(0, os.path.join(CAFFE_PATH, 'python'))
+import caffe
+import h5py
+import numpy as np
+
 # CPU ONLY
 if not args.cpuonly:
     caffe.set_mode_gpu()
@@ -56,11 +56,11 @@ if args.mean != None:
 elif args.mean_file != None:
     if 'npy' in args.mean_file:
         mean = np.load(args.mean_file)
-        transformer.set_mean('data', mean)
     else:
         from binaryproto2npy import proto2npy
         mean = proto2npy(args.mean_file)[0]
-        transformer.set_mean('data', mean)
+    mean = mean.mean(1).mean(1)
+    transformer.set_mean('data', mean)
 if args.scale:
     transformer.set_raw_scale('data', args.scale)  # the reference model operates on images in [0,255] range instead of [0,1]
 if args.swap:
@@ -90,7 +90,7 @@ if args.flist != None:
                 flist[i] = "%s %s %d\n" %(vsplit[0], vsplit[1], counter)
     for layer in args.layer:
         outputs.append(h5py.File(args.output + '_' + layer.replace('/','_') + '.h5', 'w'))
-        dim = net.blobs[layer].data.shape
+        dim = list(net.blobs[layer].data.shape)
         if len(dim) < 3:
             dim = [1,1,np.array(dim).prod()]
         outputs[-1].create_dataset('outputs', tuple([len(flist)] + dim), dtype='float32')
@@ -98,7 +98,7 @@ if args.flist != None:
         outputs[-1].create_dataset('seq_number', (len(flist),), dtype='int32')
     for i,line in enumerate(flist):
         spline = line.replace('\n', '').split(" ")
-        img = imread(os.path.join(args.flist[0], spline[0]))
+        img = imread(os.path.join(args.flist[0], spline[0]).replace('\\', '/'))
         if args.verbose:
             print(os.path.join(args.flist[0], spline[0]))
         net.blobs['data'].data[...] = transformer.preprocess('data', img)
