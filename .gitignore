@@ -64,3 +64,6 @@ target/
 #Ipython Notebook
 .ipynb_checkpoints
 .DS_Store
+
+tests/test1_outputs.h5
+tests/test2_outputs.h5
