@@ -65,6 +65,10 @@ target/
 .ipynb_checkpoints
 .DS_Store
 
+<<<<<<< HEAD
 tests/test1_outputs.h5
 tests/test2_outputs.h5
+=======
+# Logs
 ./logs
+>>>>>>> c82d19badefc74a6fd3902ec714c42f7f91446d7

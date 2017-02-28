@@ -57,4 +57,3 @@ for it = 1, MAX_ITER do
     end
     print('OK.')
 end
-

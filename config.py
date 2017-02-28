@@ -1,1 +1,1 @@
-CAFFE_PATH='/home/prlz77/Code/caffe'
+CAFFE_PATH='/home/pau/caffe'

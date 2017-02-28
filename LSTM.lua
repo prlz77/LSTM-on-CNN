@@ -11,7 +11,6 @@ require 'cutorch'
 require 'cunn'
 require 'cudnn'
 require 'optim'
-require 'data_loader'
 require 'paths'
 require 'gnuplot'
 require 'math'
@@ -42,6 +41,7 @@ cmd:option('--maxEpoch', 1000, 'maximum number of epochs to run')
 cmd:option('--uniform', 0.1, 'initialize parameters using uniform distribution between -uniform and uniform. -1 means default initialization')
 
 -- recurrent layer
+cmd:option('--maskzero', false, 'mask zero flag')
 cmd:option('--rho', 5, 'back-propagate through time (BPTT) for rho time-steps')
 cmd:option('--hiddenSize', 200, 'number of hidden units used at output of each recurrent layer. When more than one is specified, RNN/LSTMs/GRUs are stacked')
 cmd:option('--depth', 1, 'number of hidden layers')
@@ -52,6 +52,7 @@ cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout proba
 cmd:option('--task', 'regress', 'main LSTM task [regress | classify]')
 cmd:option('--criterion', 'MSECriterion', 'loss type')
 cmd:option('--nlabels', 0, 'number of output neurons (max(labels) by default)')
+cmd:option('--balanceWeights', false, 'whether to weight labels')
 
 -- other
 cmd:option('--printEvery', 0, 'print loss every n iters')
@@ -67,6 +68,15 @@ cmd:option('--earlyStop', 0, 'Stop when test error plateaus for n epochs.')
 cmd:text()
 
 opt = cmd:parse(arg or {})
+
+-- Different data loaders if we need to mask with zeros
+if opt.maskzero == true then
+    print('Using masked data reader')
+    require 'masked_data_loader'
+else
+    print('Using batch interleaving')
+    require 'data_loader'
+end
 
 -- choose device
 cutorch.setDevice(opt.useDevice)
@@ -91,8 +101,17 @@ end
 
 -- initialize dataset
 local hdf5_fields = {data='outputs', labels='labels', seq='seq_number'}
-local trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho, false, hdf5_fields)
-local valDB = SequentialDB(opt.valPath, opt.batchSize, opt.rho, false, hdf5_fields) --bs=1 to loop only once through all the data.
+if opt.maskzero == true then
+    trainDB = SequentialDB(opt.trainPath, opt.batchSize, false, hdf5_fields)
+    valDB = SequentialDB(opt.valPath, opt.batchSize, false, hdf5_fields) --bs=1 to loop only once through all the data.
+    opt.trainRho = trainDB.rho
+    opt.valRho = valDB.rho
+else
+    trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho, false, hdf5_fields)
+    valDB = SequentialDB(opt.valPath, opt.batchSize, opt.rho, false, hdf5_fields) --bs=1 to loop only once through all the data.
+    opt.trainRho = opt.rho
+    opt.valRho = opt.rho
+end
 local trainIters = math.floor(trainDB.N / trainDB.bs)
 local valIters = math.floor(valDB.N / valDB.bs)
 --valDB.batchIndexs = torch.linspace(1,opt.batchSize, opt.batchSize)
@@ -114,28 +133,38 @@ if opt.load == '' then
   -- build LSTM RNN
   rnn = nn.Sequential()
   rnn:add(nn.SplitTable(1,2)) -- (bs, rho, dim)
-  rnn = rnn:add(nn.Sequencer(nn.FastLSTM(dataDim, opt.hiddenSize)))
+  local lstm = nn.FastLSTM(dataDim, opt.hiddenSize)
+  if opt.maskzero == true then
+      lstm = lstm:maskZero(1)
+  end    
+  rnn = rnn:add(nn.Sequencer(lstm))
   if opt.dropoutProb > 0 then
     rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
   end
 
   for d = 1,(opt.depth - 1) do
-    rnn = rnn:add(nn.Sequencer(nn.FastLSTM(opt.hiddenSize, opt.hiddenSize)))
+    local lstm = nn.FastLSTM(opt.hiddenSize, opt.hiddenSize)
+    if opt.maskzero == true then
+        lstm = lstm:maskZero(1)
+    end
+    rnn = rnn:add(nn.Sequencer(lstm))
     if opt.dropoutProb > 0 then
       rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
     end
   end
+  rnn:add(nn.SelectTable(-1))
   if opt.task == 'regress' then
-  	rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, trainDB.ldim[2])))
+  	rnn = rnn:add(nn.Linear(opt.hiddenSize, trainDB.ldim[2]))
   else
+    trainDB:minLabelToOne()
+    valDB:minLabelToOne()
   	if opt.nlabels > 0 then
   		nlabels = opt.nlabels
   	else
-  		nlabels = trainDB.maxLabel
+  		nlabels = trainDB.maxLabel -- warning, it must be after calling minLabelToOne
   	end
-  	rnn = rnn:add(nn.Sequencer(nn.Linear(opt.hiddenSize, nlabels)))
+  	rnn = rnn:add(nn.Linear(opt.hiddenSize, nlabels))
   end
-  rnn:add(nn.SelectTable(-1))
 
   -- CPU -> GPU
   rnn:cuda()
@@ -146,10 +175,10 @@ if nlabels and opt.confMat ~= '' then
   confusion = optim.ConfusionMatrix(nlabels)
 end
 		
-  -- random init weights
-  for k,param in ipairs(rnn:parameters()) do
-    param:uniform(-opt.uniform, opt.uniform)
-  end
+-- random init weights
+for k,param in ipairs(rnn:parameters()) do
+  param:uniform(-opt.uniform, opt.uniform)
+end
 
 else --pre-trained model
   rnn = torch.load(opt.model)
@@ -163,7 +192,13 @@ local criterion
 if opt.task == 'regress' then
     criterion = nn[opt.criterion]():cuda()
 else
-    criterion = nn.CrossEntropyCriterion():cuda()
+    if opt.balanceWeights == true then
+        local weights = trainDB:getLabelWeights()
+        print("Label importance: ", 1 - weights)
+        criterion = nn.CrossEntropyCriterion(1 - weights):cuda()
+    else
+        criterion = nn.CrossEntropyCriterion():cuda()
+    end
 end
 print(criterion)
 
@@ -179,13 +214,14 @@ lightModel = rnn:clone('weight','bias','running_mean','running_std')
 local epoch = 1
 
 function train()
+  print(optimState)
   rnn:training()
 
   local feval = function(x)
     if x ~= parameters then parameters:copy(x) end
     gradParameters:zero()
     inputs, targets = trainDB:getBatch()
-    inputs = inputs:resize(opt.batchSize,opt.rho,dataDim):cuda()
+    inputs = inputs:resize(opt.batchSize,opt.trainRho,dataDim):cuda()
     targets = targets[{{},-1,{}}]:resize(opt.batchSize, valDB.ldim[2]):cuda()
     outputs = rnn:forward(inputs)
     local f = criterion:forward(outputs, targets)
@@ -248,7 +284,7 @@ function test()
   local loss = 0
   local outputHist = {}
   local targetHist = {}
-  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= ''  )
+  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= '' or opt.confMat ~= '' )
   accuracy = 0
   if confusion then
     confusion:zero()
@@ -256,7 +292,7 @@ function test()
   --local inputHist = {} uncomment if 1D
   for iter = 1, valIters do
     inputs, targets = valDB:getBatch()
-    inputs = inputs:resize(valDB.bs,opt.rho,dataDim):cuda()
+    inputs = inputs:resize(valDB.bs,opt.valRho,dataDim):cuda()
     targets = targets[{{},-1,{}}]:resize(valDB.bs, valDB.ldim[2]):cuda()
     local outputs = rnn:forward(inputs)
     if opt.task == 'classify' then
@@ -314,16 +350,16 @@ function test()
     end
 
     if opt.saveBestMSE ~= '' and epoch == bestEpoch then
-        local output = hdf5.open(opt.saveBestMSE, 'w')
-        output:write('outputs', outputHist_join)
-        output:write('labels', targetHist_join)
-        output:close()
+      local output = hdf5.open(opt.saveBestMSE, 'w')
+      output:write('outputs', outputHist_join)
+      output:write('labels', targetHist_join)
+      output:close()
     end
     if confusion then
-	confusion:updateValids()
-        fConfMat:write('epoch: '..epoch..'\n')
-	fConfMat:write(confusion:__tostring__())
-        fConfMat:flush()
+      confusion:updateValids()
+      fConfMat:write('epoch: '..epoch..'\n')
+	  fConfMat:write(confusion:__tostring__()..'\n')
+      fConfMat:flush()
     end
   end
       

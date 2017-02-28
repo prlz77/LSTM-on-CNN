@@ -1,8 +1,9 @@
 # LSTM-on-CNN
-Extracts features from a pre-trained CNN and trains a LSTM.
+Extracts features from a pre-trained CNN and trains a LSTM. 
 
 **Updates**
-* (Recent) Early stop. Choosing GPU.
+* (Recent) Masked input for many-to-one prediction. 
+* Early stop. Choosing GPU.
 * Added script to save images into h5 file.
 * AUC score, better sorting frames in gen_output, saving best outputs.
 * Correct and incorrect data examples in this README
@@ -10,6 +11,25 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 * Added Classification tests.
 * Added Classification task.
 
+## Publications
+The code has been used in the following publications:
+
+```
+@article{rodriguez2017deep,
+  title={Deep Pain: Exploiting Long Short-Term Memory Networks for Facial Expression Classification},
+  author={Rodriguez, Pau and Cucurull, Guillem and Gonz{\`a}lez, Jordi and Gonfaus, Josep M and Nasrollahi, Kamal and Moeslund, Thomas B and Roca, F Xavier},
+  journal={IEEE Transactions on Cybernetics},
+  year={2017},
+  publisher={IEEE}
+}
+@inproceedings{bellantonio2016spatio,
+  title={Spatio-Temporal Pain Recognition in CNN-based Super-Resolved Facial Images},
+  author={Bellantonio, Marco and Haque, Mohammad A and Rodriguez, Pau and Nasrollahi, Kamal and Telve, Taisi and Escarela, Sergio and Gonzalez, Jordi and Moeslund, Thomas B and Rasti, Pejman and Anbarjafari, Gholamreza},
+  booktitle={International Conference on Pattern Recognition (icpr)},
+  year={2016},
+  organization={Springer}
+}
+```
 
 ## Installation and dependences
 1. Install CUDA and CUDNN if possible.
