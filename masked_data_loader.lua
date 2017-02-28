@@ -28,6 +28,7 @@ function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields)
   self.bs = batchSize
   self.rho = 0 
   self.maxLabel = self.labels:all():max()
+  self.minLabel = self.labels:all():min()
   print("Generating Sequences")
   self.sequences = {}
   local prevSeq = self.seqNums:partial({1,1})[1]
@@ -61,8 +62,17 @@ end
 
 -- Make sure the labels start by one
 function SequentialDB:minLabelToOne()
-    self.offset = self.offset or (1 - self.labels:all():min())
+    self.offset = self.offset or (1 - self.minLabel)
+    self.maxLabel = self.maxLabel + self.offset
     return self.offset == 0
+end
+
+function SequentialDB:getLabelWeights()
+    if self.labelWeights == nil then
+        self.labelWeights = torch.histc(self.labels:all(), self.maxLabel):float()
+        self.labelWeights = self.labelWeights:div(self.labelWeights:sum())
+    end
+    return self.labelWeights
 end
 
 function SequentialDB:reset()

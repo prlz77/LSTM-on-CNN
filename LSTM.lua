@@ -52,6 +52,7 @@ cmd:option('--dropoutProb', 0.5, 'probability of zeroing a neuron (dropout proba
 cmd:option('--task', 'regress', 'main LSTM task [regress | classify]')
 cmd:option('--criterion', 'MSECriterion', 'loss type')
 cmd:option('--nlabels', 0, 'number of output neurons (max(labels) by default)')
+cmd:option('--balanceWeights', false, 'whether to weight labels')
 
 -- other
 cmd:option('--printEvery', 0, 'print loss every n iters')
@@ -122,8 +123,6 @@ if opt.auc then
   table.insert(names,'auc')
 end
 if opt.task == 'classify' then
-  trainDB:minLabelToOne()
-  valDB:minLabelToOne()
   table.insert(names, 'accuracy')
 end
 logger:setNames(names)
@@ -134,33 +133,35 @@ if opt.load == '' then
   -- build LSTM RNN
   rnn = nn.Sequential()
   rnn:add(nn.SplitTable(1,2)) -- (bs, rho, dim)
-  local lstm = nn.Sequencer(nn.FastLSTM(dataDim, opt.hiddenSize))
+  local lstm = nn.FastLSTM(dataDim, opt.hiddenSize)
   if opt.maskzero == true then
-      lstm = nn.MaskZero(lstm, 1)
+      lstm = lstm:maskZero(1)
   end    
-  rnn = rnn:add(lstm)
+  rnn = rnn:add(nn.Sequencer(lstm))
   if opt.dropoutProb > 0 then
     rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
   end
 
   for d = 1,(opt.depth - 1) do
-    local lstm = nn.Sequencer(nn.FastLSTM(opt.hiddenSize, opt.hiddenSize))
+    local lstm = nn.FastLSTM(opt.hiddenSize, opt.hiddenSize)
     if opt.maskzero == true then
-        lstm = nn.MaskZero(lstm, 1)
+        lstm = lstm:maskZero(1)
     end
-    rnn = rnn:add(lstm)
+    rnn = rnn:add(nn.Sequencer(lstm))
     if opt.dropoutProb > 0 then
-      rnn = rnn:add(nn.Dropout(opt.dropoutProb))
+      rnn = rnn:add(nn.Sequencer(nn.Dropout(opt.dropoutProb)))
     end
   end
   rnn:add(nn.SelectTable(-1))
   if opt.task == 'regress' then
   	rnn = rnn:add(nn.Linear(opt.hiddenSize, trainDB.ldim[2]))
   else
+    trainDB:minLabelToOne()
+    valDB:minLabelToOne()
   	if opt.nlabels > 0 then
   		nlabels = opt.nlabels
   	else
-  		nlabels = trainDB.maxLabel
+  		nlabels = trainDB.maxLabel -- warning, it must be after calling minLabelToOne
   	end
   	rnn = rnn:add(nn.Linear(opt.hiddenSize, nlabels))
   end
@@ -191,7 +192,13 @@ local criterion
 if opt.task == 'regress' then
     criterion = nn[opt.criterion]():cuda()
 else
-    criterion = nn.CrossEntropyCriterion():cuda()
+    if opt.balanceWeights == true then
+        local weights = trainDB:getLabelWeights()
+        print("Label importance: ", 1 - weights)
+        criterion = nn.CrossEntropyCriterion(1 - weights):cuda()
+    else
+        criterion = nn.CrossEntropyCriterion():cuda()
+    end
 end
 print(criterion)
 
@@ -207,6 +214,7 @@ lightModel = rnn:clone('weight','bias','running_mean','running_std')
 local epoch = 1
 
 function train()
+  print(optimState)
   rnn:training()
 
   local feval = function(x)
@@ -276,7 +284,7 @@ function test()
   local loss = 0
   local outputHist = {}
   local targetHist = {}
-  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= ''  )
+  local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= '' or opt.confMat ~= '' )
   accuracy = 0
   if confusion then
     confusion:zero()
