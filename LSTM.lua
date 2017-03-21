@@ -14,6 +14,7 @@ require 'optim'
 require 'paths'
 require 'gnuplot'
 require 'math'
+local nninit = require 'nninit'
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
@@ -33,6 +34,7 @@ cmd:option('--load', '', 'Load LSTM pre-trained weights')
 cmd:option('--saveOutputs', '', '.h5 file path to save outputs')
 cmd:option('--saveBestAuc', '', '.h5 file path to save best outputs')
 cmd:option('--saveBestMSE', '', '.h5 file path to save best test mse outputs')
+cmd:option('--targetName', 'labels', 'target field name in the h5 file')
 
 --cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -100,7 +102,7 @@ else
 end
 
 -- initialize dataset
-local hdf5_fields = {data='outputs', labels='labels', seq='seq_number'}
+local hdf5_fields = {data='outputs', labels=opt.targetName, seq='seq_number'}
 if opt.maskzero == true then
     trainDB = SequentialDB(opt.trainPath, opt.batchSize, false, hdf5_fields)
     valDB = SequentialDB(opt.valPath, opt.batchSize, false, hdf5_fields) --bs=1 to loop only once through all the data.
@@ -226,9 +228,11 @@ function train()
     outputs = rnn:forward(inputs)
     local f = criterion:forward(outputs, targets)
     local df_do = criterion:backward(outputs, targets)
+    df_do[df_do:ne(df_do)] = 0 --remove nan
     rnn:backward(inputs, df_do)
+    
     --clip gradients
-    rnn:gradParamClip(5)
+    rnn:gradParamClip(4)
     return f,gradParameters
   end
   -- keep avg loss
@@ -300,7 +304,7 @@ function test()
     	accuracy = accuracy + ind:float():cuda():eq(targets):sum() / outputs:size(1)
     end
     if confusion then
-      confusion:batchAdd(outputs, targets) 
+        confusion:batchAdd(outputs, targets) 
     end
     if saveHist then
       --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D

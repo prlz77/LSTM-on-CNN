@@ -14,6 +14,7 @@ parser.add_argument('weights', type=str, help='The model weights file.')
 parser.add_argument('layer', type=str, nargs='+', help='The target layer(s).')
 parser.add_argument('--output', type=str, help='The output file.', default='output.h5')
 parser.add_argument('--flist', nargs=2, type=str, help='The base folder and the file list of the images.', default=None)
+parser.add_argument('--label_names', nargs='+', type=str, default=['labels'], help='specific label names, accepts more than one label')
 parser.add_argument('--dataset', type=str, help='The lmdb dataset.', default=None)
 parser.add_argument('--sort', action='store_true', help="Whether images should be sorted")
 parser.add_argument('--mean', type=float, nargs=3, default=None, help='Pixel mean (3 bgr values)')
@@ -26,6 +27,10 @@ parser.add_argument('--standarize_with', type=str, default='', help='get mean an
 parser.add_argument('--verbose', action='store_true', help='show image paths while being processed')
 
 args = parser.parse_args()
+
+#TODO
+if args.standarize and len(args.label_names > 1):
+    raise NotImplementedError("This code does not support yet standarizing multiple labels")
 
 # Move the rest of imports to avoid conflicts with argparse
 import sys
@@ -67,7 +72,9 @@ if args.swap:
     transformer.set_channel_swap('data', (2,1,0))  # the reference model has channels in BGR order instead of RGB
 
 # Auxiliar variables
-labels = []
+labels = {}
+for label_name in args.label_names:
+    labels[label_name] = []
 outputs = []
 seq_numbers_set = []
 seq_nums = []
@@ -87,14 +94,15 @@ if args.flist != None:
                 if seq != current_seq:
                     current_seq = seq
                     counter += 1
-                flist[i] = "%s %s %d\n" %(vsplit[0], vsplit[1], counter)
+                flist[i] = " ".join(vsplit[:-1]) + " %d\n" %(counter)
     for layer in args.layer:
         outputs.append(h5py.File(args.output + '_' + layer.replace('/','_') + '.h5', 'w'))
         dim = list(net.blobs[layer].data.shape)
         if len(dim) < 3:
             dim = [1,1,np.array(dim).prod()]
         outputs[-1].create_dataset('outputs', tuple([len(flist)] + dim), dtype='float32')
-        outputs[-1].create_dataset('labels', (len(flist), 1), dtype='float')
+        for label_name in args.label_names:
+            outputs[-1].create_dataset(label_name, (len(flist), 1), dtype='float')
         outputs[-1].create_dataset('seq_number', (len(flist),), dtype='int32')
     for i,line in enumerate(flist):
         spline = line.replace('\n', '').split(" ")
@@ -111,11 +119,13 @@ if args.flist != None:
         seq_nums.append(seq_number)
 
         # for debugging
-        labels.append(float(spline[1]))
+        for idx, label_name in enumerate(args.label_names):
+            labels[label_name].append(float(spline[1 + idx]))
 
         for index, layer in enumerate(args.layer):
             outputs[index]['outputs'][i,...] = net.blobs[layer].data[...]
-            outputs[index]['labels'][i,...] = labels[-1]
+            for label_name in args.label_names:
+                outputs[index][label_name][i,...] = labels[label_name][-1]
             outputs[index]['seq_number'][i] = seq_nums[-1]
         if i % 1000 == 0:
             print "Processing image ", i, " of ", len(flist)
