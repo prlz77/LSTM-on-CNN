@@ -24,6 +24,7 @@ parser.add_argument('--swap', action='store_true', help='BGR <-> RGB. If using -
 parser.add_argument('--cpuonly', action='store_true', help='CPU-Only flag.')
 parser.add_argument('--standarize', action='store_true', help="whether to standarize the outputs")
 parser.add_argument('--standarize_with', type=str, default='', help='get mean and std from another .h5 (recommended for validation)')
+parser.add_argument('--save_paths', action='store_true', help="Whether to save the path of the files")
 parser.add_argument('--verbose', action='store_true', help='show image paths while being processed')
 
 args = parser.parse_args()
@@ -78,6 +79,7 @@ for label_name in args.label_names:
 outputs = []
 seq_numbers_set = []
 seq_nums = []
+paths = []
 
 # We received a txt listfile, not lmdb
 if args.flist != None:
@@ -121,6 +123,9 @@ if args.flist != None:
         # for debugging
         for idx, label_name in enumerate(args.label_names):
             labels[label_name].append(float(spline[1 + idx]))
+        
+        if args.save_paths:
+            paths.append(line)
 
         for index, layer in enumerate(args.layer):
             outputs[index]['outputs'][i,...] = net.blobs[layer].data[...]
@@ -129,8 +134,11 @@ if args.flist != None:
             outputs[index]['seq_number'][i] = seq_nums[-1]
         if i % 1000 == 0:
             print "Processing image ", i, " of ", len(flist)
+    
 
     for index, layer in enumerate(args.layer):
+        if args.save_paths:
+            outputs[index]['paths'] = paths
         if os.path.isfile(args.standarize_with):
             train = h5py.File(args.standarize_with, 'r')
             mean = train['mean'][...]

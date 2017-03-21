@@ -16,7 +16,7 @@ local class = require 'class'
 SequentialDB = class('SequentialDB')
 
 
-function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields)
+function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields, offset)
   self.shuffle = false or shuffle
   hdf5_fields = hdf5_fields or {data='outputs', labels='labels', seq='seq_number'}
   self.db = hdf5.open(dataPath, 'r')
@@ -27,8 +27,9 @@ function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields)
   self.ldim = self.labels:dataspaceSize()
   self.bs = batchSize
   self.rho = 0 
-  self.maxLabel = self.labels:all():max()
-  self.minLabel = self.labels:all():min()
+  self.offset = offset or 0
+  self.maxLabel = self.labels:all():max() + self.offset
+  self.minLabel = self.labels:all():min() + self.offset
   print("Generating Sequences")
   self.sequences = {}
   local prevSeq = self.seqNums:partial({1,1})[1]
@@ -62,8 +63,12 @@ end
 
 -- Make sure the labels start by one
 function SequentialDB:minLabelToOne()
-    self.offset = self.offset or (1 - self.minLabel)
-    self.maxLabel = self.maxLabel + self.offset
+    if self.offset == 0 then
+        self.offset = 1 - self.minLabel
+        self.maxLabel = self.maxLabel + self.offset
+    else
+        error("offset already set")
+    end
     return self.offset == 0
 end
 

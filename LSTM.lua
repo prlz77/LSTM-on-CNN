@@ -14,7 +14,6 @@ require 'optim'
 require 'paths'
 require 'gnuplot'
 require 'math'
-local nninit = require 'nninit'
 
 --[[command line arguments]]--
 cmd = torch.CmdLine()
@@ -35,6 +34,7 @@ cmd:option('--saveOutputs', '', '.h5 file path to save outputs')
 cmd:option('--saveBestAuc', '', '.h5 file path to save best outputs')
 cmd:option('--saveBestMSE', '', '.h5 file path to save best test mse outputs')
 cmd:option('--targetName', 'labels', 'target field name in the h5 file')
+cmd:option('--labelOffset', 0, '1 to sum 1 to all labels')
 
 --cmd:option('--cuda', false, 'use CUDA')
 cmd:option('--useDevice', 1, 'sets the device (GPU) to use')
@@ -104,11 +104,12 @@ end
 -- initialize dataset
 local hdf5_fields = {data='outputs', labels=opt.targetName, seq='seq_number'}
 if opt.maskzero == true then
-    trainDB = SequentialDB(opt.trainPath, opt.batchSize, false, hdf5_fields)
-    valDB = SequentialDB(opt.valPath, opt.batchSize, false, hdf5_fields) --bs=1 to loop only once through all the data.
+    trainDB = SequentialDB(opt.trainPath, opt.batchSize, false, hdf5_fields, opt.labelOffset)
+    valDB = SequentialDB(opt.valPath, opt.batchSize, false, hdf5_fields, opt.labelOffset) --bs=1 to loop only once through all the data.
     opt.trainRho = trainDB.rho
     opt.valRho = valDB.rho
 else
+    --TODO add label offsets to basic sequential db
     trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho, false, hdf5_fields)
     valDB = SequentialDB(opt.valPath, opt.batchSize, opt.rho, false, hdf5_fields) --bs=1 to loop only once through all the data.
     opt.trainRho = opt.rho
@@ -158,8 +159,10 @@ if opt.load == '' then
   if opt.task == 'regress' then
   	rnn = rnn:add(nn.Linear(opt.hiddenSize, trainDB.ldim[2]))
   else
-    trainDB:minLabelToOne()
-    valDB:minLabelToOne()
+    if opt.labelOffset == 0 then
+        trainDB:minLabelToOne()
+        valDB:minLabelToOne()
+    end
   	if opt.nlabels > 0 then
   		nlabels = opt.nlabels
   	else
@@ -228,11 +231,10 @@ function train()
     outputs = rnn:forward(inputs)
     local f = criterion:forward(outputs, targets)
     local df_do = criterion:backward(outputs, targets)
-    df_do[df_do:ne(df_do)] = 0 --remove nan
     rnn:backward(inputs, df_do)
     
     --clip gradients
-    rnn:gradParamClip(4)
+    rnn:gradParamClip(5)
     return f,gradParameters
   end
   -- keep avg loss
