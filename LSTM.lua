@@ -221,10 +221,12 @@ lightModel = rnn:clone('weight','bias','running_mean','running_std')
 --set current epoch
 local epoch = 1
 
+-- train loop
 function train()
   print(optimState)
   rnn:training()
 
+  -- Compute gradients
   local feval = function(x)
     if x ~= parameters then parameters:copy(x) end
     gradParameters:zero()
@@ -240,16 +242,19 @@ function train()
     rnn:gradParamClip(5)
     return f,gradParameters
   end
+
   -- keep avg loss
   local loss = 0
+
   for iter = 1, trainIters do
-    parameters, f = optim.adam(feval, parameters, optimState)
+    parameters, f = optim.adam(feval, parameters, optimState) -- update params.
     xlua.progress(iter, trainIters)
     if iter % opt.printEvery == 0 then
       print('Iter: '..iter..', loss: '..loss )
     end
     loss = loss + f[1]
   end
+
   return loss / trainIters
 end
 
