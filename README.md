@@ -2,7 +2,9 @@
 Extracts features from a pre-trained CNN and trains a LSTM. 
 
 **Updates**
-* (Recent) Masked input for many-to-one prediction. 
+* *(Recent)* Label offsets. Max batch-size inference. 
+* gen_outputs.py can now read multilabeled files, and ignore missing images.
+* Masked input for many-to-one prediction. 
 * Early stop. Choosing GPU.
 * Added script to save images into h5 file.
 * AUC score, better sorting frames in gen_output, saving best outputs.
