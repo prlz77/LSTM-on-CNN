@@ -15,7 +15,6 @@ require 'math'
 local class = require 'class'
 SequentialDB = class('SequentialDB')
 
-
 function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields, offset)
   self.shuffle = false or shuffle
   hdf5_fields = hdf5_fields or {data='outputs', labels='labels', seq='seq_number'}
@@ -45,19 +44,19 @@ function SequentialDB:__init(dataPath, batchSize, shuffle, hdf5_fields, offset)
   end
   table.insert(self.sequences, {start, self.dim[1]})
   self.rho = math.max(self.rho, 1 + self.dim[1] - start)
-
-  -- Output tensors
-  self.dataTensor = torch.Tensor(batchSize, self.rho, self.dim[2], self.dim[3], self.dim[4])
-  self.targetTensor = torch.Tensor(batchSize, self.rho, self.ldim[2])
    
   self.N = #self.sequences
+  self.bs = math.min(self.N, self.bs)
+
   self.sequences = torch.IntTensor(self.sequences)
-  assert(self.bs <= self.N)
   if self.shuffle then
       print("Shuffling...")
       local shuff = torch.randperm(self.N):long()
       self.sequences = self.sequences:index(1, shuff)
   end
+  -- Output tensors
+  self.dataTensor = torch.Tensor(batchSize, self.rho, self.dim[2], self.dim[3], self.dim[4])
+  self.targetTensor = torch.Tensor(batchSize, self.rho, self.ldim[2])
   self.batchIndexs = torch.linspace(1, self.bs, self.bs)
 end
 

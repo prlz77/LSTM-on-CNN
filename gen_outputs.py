@@ -25,6 +25,7 @@ parser.add_argument('--cpuonly', action='store_true', help='CPU-Only flag.')
 parser.add_argument('--standarize', action='store_true', help="whether to standarize the outputs")
 parser.add_argument('--standarize_with', type=str, default='', help='get mean and std from another .h5 (recommended for validation)')
 parser.add_argument('--save_paths', action='store_true', help="Whether to save the path of the files")
+parser.add_argument('--ignore_missing', action='store_true', help="Skip missing images")
 parser.add_argument('--verbose', action='store_true', help='show image paths while being processed')
 
 args = parser.parse_args()
@@ -81,6 +82,7 @@ seq_numbers_set = []
 seq_nums = []
 paths = []
 
+
 # We received a txt listfile, not lmdb
 if args.flist != None:
     from cv2 import imread
@@ -97,6 +99,18 @@ if args.flist != None:
                     current_seq = seq
                     counter += 1
                 flist[i] = " ".join(vsplit[:-1]) + " %d\n" %(counter)
+
+    if args.ignore_missing:
+        from warnings import warn
+        warn("Ignoring missing images")
+        flist2 = []
+        for line in flist:
+            spline = line.replace('\n', '').split(" ")
+            path = os.path.join(args.flist[0], spline[0]).replace('\\', '/')
+            if os.path.isfile(path):
+                flist2.append(line)
+        flist = flist2 
+
     for layer in args.layer:
         outputs.append(h5py.File(args.output + '_' + layer.replace('/','_') + '.h5', 'w'))
         dim = list(net.blobs[layer].data.shape)

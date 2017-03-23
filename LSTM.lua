@@ -3,8 +3,9 @@
 -- Mail: pau.rodri1 at gmail.com
 -- Institution: ISELAB in CVC-UAB
 -- Date: 14/06/2016
--- Description: Performs regression with a LSTM neural network on arbitrary sequential hdf5 data in the form n-to-one. 
--- It also has plotting features and allows to save outputs for further processing.
+-- Description: Performs regression and classification with a LSTM neural 
+-- network on arbitrary sequential hdf5 data in the form n-to-one. 
+-- It also has plotting features and saves outputs for further processing.
 
 require 'rnn'
 require 'cutorch'
@@ -115,10 +116,12 @@ else
     opt.trainRho = opt.rho
     opt.valRho = opt.rho
 end
+
 local trainIters = math.floor(trainDB.N / trainDB.bs)
 local valIters = math.floor(valDB.N / valDB.bs)
---valDB.batchIndexs = torch.linspace(1,opt.batchSize, opt.batchSize)
+
 local dataDim = trainDB.dim[2]*trainDB.dim[3]*trainDB.dim[4] -- get flat data dimensions
+
 -- start logger
 logger = optim.Logger(opt.logPath)
 local names = {'epoch', 'train_error', 'test_error'}
@@ -226,8 +229,8 @@ function train()
     if x ~= parameters then parameters:copy(x) end
     gradParameters:zero()
     inputs, targets = trainDB:getBatch()
-    inputs = inputs:resize(opt.batchSize,opt.trainRho,dataDim):cuda()
-    targets = targets[{{},-1,{}}]:resize(opt.batchSize, valDB.ldim[2]):cuda()
+    inputs = inputs:resize(trainDB.bs, opt.trainRho, dataDim):cuda()
+    targets = targets[{{},-1,{}}]:resize(trainDB.bs, valDB.ldim[2]):cuda()
     outputs = rnn:forward(inputs)
     local f = criterion:forward(outputs, targets)
     local df_do = criterion:backward(outputs, targets)
@@ -278,10 +281,13 @@ local auc = function(outputs, targets)
          return auc, tpr, fpr
 end
 
+-- auxiliar variables
 aucScore = 0
 local bestAuc = -1
 local bestMSE = 10000000
 local bestEpoch = 1
+
+-- Test loop
 function test()
   rnn:evaluate()
   -- Discard last frames to make it multiple of rho*batchSize
@@ -292,6 +298,7 @@ function test()
   local targetHist = {}
   local saveHist = (opt.plotRegression ~= 0 or opt.auc or opt.saveOutputs ~= '' or opt.saveBestAuc ~= '' or opt.saveBestMSE ~= '' or opt.confMat ~= '' )
   accuracy = 0
+  -- restart confusion matrix
   if confusion then
     confusion:zero()
   end
@@ -301,45 +308,56 @@ function test()
     inputs = inputs:resize(valDB.bs,opt.valRho,dataDim):cuda()
     targets = targets[{{},-1,{}}]:resize(valDB.bs, valDB.ldim[2]):cuda()
     local outputs = rnn:forward(inputs)
+
     if opt.task == 'classify' then
     	max, ind = torch.max(outputs, 2)
     	accuracy = accuracy + ind:float():cuda():eq(targets):sum() / outputs:size(1)
     end
+
     if confusion then
         confusion:batchAdd(outputs, targets) 
     end
+
     if saveHist then
       --inputHist[iter] = inputs[{{},-1,{}}]:float():view(-1) uncomment if 1D
       outputHist[iter] = outputs:float():view(-1)
       targetHist[iter] = targets:float():view(-1)
     end
+
+    -- forward step 
     local f = criterion:forward(outputs, targets)    
     xlua.progress(iter, valIters)
     loss = loss + f
   end
-  loss = loss / valIters
+
+  loss = loss / valIters -- average loss
   if opt.task == 'classify' then
-	accuracy = accuracy / valIters
+	accuracy = accuracy / valIters -- average accuracy
   	print('Accuracy ' .. accuracy)
   end
+
+  -- Keep track of the best loss (MSE <-> LogLikelihood)
   if loss < bestMSE then
     bestMSE = loss
     bestEpoch = epoch
   end
+
   if saveHist then
     --inputHist = nn.JoinTable(1,1):forward(inputHist) uncomment if 1D
     -- edge efects if rho > 1 because we need rho frames to predict the last one
     outputHist_join = nn.JoinTable(1,1):forward(outputHist)
     targetHist_join = nn.JoinTable(1,1):forward(targetHist)
+    
     if opt.auc then
       aucScore, tpr, fpr = auc(outputHist_join, torch.gt(targetHist_join,0))
       print('Auc:' .. aucScore)
     end
+
     if (epoch % opt.plotRegression) == 0 then
       gnuplot.plot({'outputs', outputHist_join, '-'},{'targets', targetHist_join, '-'})
     end
     --gnuplot.plot({'inputs', inputHist, '.'},{'outputs', outputHist, '-'},{'targets', targetHist, '-'}) --uncomment if 1D
-        
+    -- Blocks for saving on best auc, accuracy, etc.     
     if opt.saveOutputs ~= '' then
       local output = hdf5.open(opt.saveOutputs, 'w')
       output:write('outputs', outputHist_join)
@@ -361,6 +379,7 @@ function test()
       output:write('labels', targetHist_join)
       output:close()
     end
+
     if confusion then
       confusion:updateValids()
       fConfMat:write('epoch: '..epoch..'\n')
@@ -372,20 +391,28 @@ function test()
   return loss, outputs
 end
 
+-- main loop
 while epoch < opt.maxEpoch do
   local trainLoss = nil
+
+  -- train step
   if not opt.testOnly then
     print('epoch '..epoch..':')
     print('Train:')
     trainLoss = train()
     print('Avg train loss: '..trainLoss)
   end
+
   local testLoss = nil
+
+  -- test step
   if (epoch % opt.testEvery) == 0 then
     print('Test:')
     testLoss = test()
     print('Avg test loss: '..testLoss)
   end
+
+  -- logging
   if opt.task == 'regress' then
     if opt.auc then
       logger:add({epoch, trainLoss, testLoss, aucScore})
@@ -395,12 +422,17 @@ while epoch < opt.maxEpoch do
   else
     logger:add({epoch, trainLoss, testLoss, accuracy})
   end
+
+  -- save snapshot
   if (epoch % opt.saveEvery) == 0 then
     torch.save(opt.savePath..'/model_'..epoch..'.t7',lightModel)
   end
+
+  -- stop on plateau
   if epoch - bestEpoch > opt.earlyStop then
     os.exit()
   end
+
   epoch = epoch + 1
   collectgarbage()
 end
