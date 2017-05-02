@@ -2,7 +2,8 @@
 Extracts features from a pre-trained CNN and trains a LSTM. 
 
 **Updates**
-* *(Recent)* Label offsets. Max batch-size inference. 
+* Specific test batchsize. (new)
+* Label offsets. Max batch-size inference. 
 * gen_outputs.py can now read multilabeled files, and ignore missing images.
 * Masked input for many-to-one prediction. 
 * Early stop. Choosing GPU.
