@@ -28,6 +28,7 @@ cmd:option('--valPath', '', 'validation.h5 path')
 cmd:option('--learningRate', 0.01, 'learning rate at t=0')
 cmd:option('--momentum', 0.9, 'momentum')
 cmd:option('--batchSize', 32, 'number of examples per batch')
+cmd:option('--testBatchSize', 0, 'number of examples per test batch (0 = same as train)')
 
 -- model i/0
 cmd:option('--load', '', 'Load LSTM pre-trained weights')
@@ -72,6 +73,11 @@ cmd:text()
 
 opt = cmd:parse(arg or {})
 
+-- Set test batch size
+if opt.testBatchSize == 0 then
+    opt.testBatchSize = opt.batchSize
+end
+
 -- Different data loaders if we need to mask with zeros
 if opt.maskzero == true then
     print('Using masked data reader')
@@ -106,13 +112,13 @@ end
 local hdf5_fields = {data='outputs', labels=opt.targetName, seq='seq_number'}
 if opt.maskzero == true then
     trainDB = SequentialDB(opt.trainPath, opt.batchSize, false, hdf5_fields, opt.labelOffset)
-    valDB = SequentialDB(opt.valPath, opt.batchSize, false, hdf5_fields, opt.labelOffset) --bs=1 to loop only once through all the data.
+    valDB = SequentialDB(opt.valPath, opt.testBatchSize, false, hdf5_fields, opt.labelOffset) --bs=1 to loop only once through all the data.
     opt.trainRho = trainDB.rho
     opt.valRho = valDB.rho
 else
     --TODO add label offsets to basic sequential db
     trainDB = SequentialDB(opt.trainPath, opt.batchSize, opt.rho, false, hdf5_fields)
-    valDB = SequentialDB(opt.valPath, opt.batchSize, opt.rho, false, hdf5_fields) --bs=1 to loop only once through all the data.
+    valDB = SequentialDB(opt.valPath, opt.testBatchSize, opt.rho, false, hdf5_fields) --bs=1 to loop only once through all the data.
     opt.trainRho = opt.rho
     opt.valRho = opt.rho
 end
