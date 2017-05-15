@@ -10,7 +10,7 @@
 require 'rnn'
 require 'cutorch'
 require 'cunn'
-require 'cudnn'
+--require 'cudnn'
 require 'optim'
 require 'paths'
 require 'gnuplot'
