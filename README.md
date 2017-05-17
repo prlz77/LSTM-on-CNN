@@ -46,7 +46,7 @@ The code has been used in the following publications:
 9. Set your caffe installation path in `config.py`
 
 ## Docker Image
-You can download it from `prlz77/lstm-on-cnn`. It is a private repo, if you need it just send me an e-mail.
+``docker pull prlz77/lstm-on-cnn``
 
 ## Automatic Script
 For automatic generation of the features and training the LSTM run:
