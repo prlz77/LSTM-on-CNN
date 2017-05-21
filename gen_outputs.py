@@ -31,7 +31,7 @@ parser.add_argument('--verbose', action='store_true', help='show image paths whi
 args = parser.parse_args()
 
 #TODO
-if args.standarize and len(args.label_names > 1):
+if args.standarize and len(args.label_names) > 1:
     raise NotImplementedError("This code does not support yet standarizing multiple labels")
 
 # Move the rest of imports to avoid conflicts with argparse
