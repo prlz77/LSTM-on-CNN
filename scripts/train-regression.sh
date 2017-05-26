@@ -5,7 +5,6 @@
 # Institution: ISELAB at CVC-UAB
 # Date: 14/06/2016
 
-
 # DATASET PATH
 DEPLOY='smth.prototxt'
 CAFFEMODEL='smth.caffemodel'
