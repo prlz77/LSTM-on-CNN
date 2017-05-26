@@ -13,6 +13,29 @@ DATAROOT='root/to/images/'
 TRAIN_LIST='train/list.txt' # ex: ./class/0345435.jpg\n... label seq_num or ./0445342.jpg\n... label seq_num, etc.
 VAL_LIST='val/list.txt' # ex: ./class/0345435.jpg\n... label seq_num or ./0445342.jpg\n... label seq_num, etc.
 
+TASK='regress' # task should be in {regress, classify}
+#PARSING ARGUMENTS
+while [[ $# -ge 1 ]]
+do
+	opt="$1"
+	case $opt in				
+		-r|--regression)
+		TASK='regress'			
+		;;
+		-c|--classify)
+		TASK='classify'			
+		;;
+		-h|--help)
+		printf "Usage: ./train.sh [OPTIONS]\nGenerates CNN festure maps, saves them to HDF5 and trains LSTM.\nOptions:\n"
+		printf "   %-15s\t\t%s\n" "-r, --regression" "LSTM for regression problem."
+		printf "   %-15s\t\t%s\n" "-c, --classify" "LSTM for classification problem."
+		printf "   %-15s\t\t%s\n" "-g, --gpu=GPU" "Set the gpu GPU device."
+		printf "   %-15s\t\t%s\n" "    --Help" "Display this help and exit."
+		exit 1
+	esac
+	shift # past argument or value
+done
+
 # CONVNET PARAMS
 EXTRACT_FROM="fc7" # example from vgg16
 
@@ -29,7 +52,6 @@ RHO=5 # max sequence length. n when doing n-to-1.
 BATCHSIZE=32 # should be as big as possible
 EPOCHS=100000
 DROPOUT_PROB=0
-TASK='regress' # task should be in {regress, classify}
 
 # Other
 SNAPSHOT_EVERY=10 #number of epochs to save current model. Set 0 for never.
