@@ -22,6 +22,7 @@ parser.add_argument('--mean_file', type=str, default=None, help='Per-pixel mean 
 parser.add_argument('--scale', type=int, default=None, help='Scale value.')
 parser.add_argument('--swap', action='store_true', help='BGR <-> RGB. If using --flist, images are loaded in BGR by default.')
 parser.add_argument('--cpuonly', action='store_true', help='CPU-Only flag.')
+parser.add_argument('--gpu', type=int, default=None, help='GPU identifier.')
 parser.add_argument('--standarize', action='store_true', help="whether to standarize the outputs")
 parser.add_argument('--standarize_with', type=str, default='', help='get mean and std from another .h5 (recommended for validation)')
 parser.add_argument('--save_paths', action='store_true', help="Whether to save the path of the files")
@@ -47,6 +48,10 @@ import numpy as np
 # CPU ONLY
 if not args.cpuonly:
     caffe.set_mode_gpu()
+
+# Set GPU device
+if args.gpu != None:
+    caffe.set_device(args.gpu);
 
 # Read Deploy + Weights file
 net = caffe.Net(args.model, args.weights,
