@@ -14,7 +14,7 @@ import caffe.proto.caffe_pb2 as caffe_pb2
 import numpy as np
 
 def proto2npy(path):
-""" Loads binaryproto and returns numpy array """
+    """ Loads binaryproto and returns numpy array """
     with open(path) as infile:
         blob = caffe_pb2.BlobProto().FromString(infile.read())
 
