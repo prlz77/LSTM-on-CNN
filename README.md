@@ -14,6 +14,18 @@ Extracts features from a pre-trained CNN and trains a LSTM.
 * Added Classification tests.
 * Added Classification task.
 
+## Citation
+If you use our code, please cite:
+```
+@article{rodriguez2017deep,
+  title={Deep Pain: Exploiting Long Short-Term Memory Networks for Facial Expression Classification},
+  author={Rodriguez, Pau and Cucurull, Guillem and Gonz{\`a}lez, Jordi and Gonfaus, Josep M and Nasrollahi, Kamal and Moeslund, Thomas B and Roca, F Xavier},
+  journal={IEEE Transactions on Cybernetics},
+  year={2017},
+  publisher={IEEE}
+}
+```
+
 ## Publications
 The code has been used in the following publications:
 
