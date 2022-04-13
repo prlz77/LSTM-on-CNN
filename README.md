@@ -44,6 +44,15 @@ The code has been used in the following publications:
   year={2016},
   organization={Springer}
 }
+@article{negin2018praxis,
+  title={PRAXIS: Towards automatic cognitive assessment using gesture recognition},
+  author={Negin, Farhood and Rodriguez, Pau and Koperski, Michal and Kerboua, Adlen and Gonz{\`a}lez, Jordi and Bourgeois, Jeremy and Chapoulie, Emmanuelle and Robert, Philippe and Bremond, Francois},
+  journal={Expert systems with applications},
+  volume={106},
+  pages={21--35},
+  year={2018},
+  publisher={Elsevier}
+}
 ```
 
 ## Installation and dependences
